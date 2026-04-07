@@ -872,10 +872,21 @@ function callupCard(c){
     '<div class="cc-meta">'+
     '<div class="cc-mi"><span class="mi">📅</span><span>'+fmtRange(c.startDate,c.endDate)+"</span></div>"+
     (c.rival?'<div class="cc-mi"><span class="mi">🆚</span><span>'+esc(c.rival)+"</span></div>":"")+
-    (c.conc&&(c.conc.date||c.conc.time||c.conc.lugar)?'<div class="cc-mi cc-mi-conc"><span class="mi">📍</span><div class="cc-mi-block"><span class="cc-mi-label">Citación</span><span>'+(c.conc.date?fmtDateShort(c.conc.date)+" ":"")+(c.conc.time?c.conc.time+"h ":"")+(c.conc.lugar?"· "+esc(c.conc.lugar):"")+"</span>"+(c.conc.hotel?'<span class="cc-mi-sub">🏨 '+esc(c.conc.hotel)+"</span>":"")+"</div></div>":"")+
-    (c.traslado&&(c.traslado.date||c.traslado.transporte)?'<div class="cc-mi cc-mi-conc" style="background:rgba(59,130,246,.08)"><span class="mi">✈️</span><div class="cc-mi-block"><span class="cc-mi-label">Traslado</span><span>'+(c.traslado.date?fmtDateShort(c.traslado.date)+" ":"")+(c.traslado.time?c.traslado.time+"h ":"")+"</span>"+(c.traslado.transporte?'<span class="cc-mi-sub">'+esc(c.traslado.transporte)+"</span>":"")+"</div></div>":"")+
-    (c.vuelta&&(c.vuelta.date||c.vuelta.time||c.vuelta.lugar)?'<div class="cc-mi cc-mi-vuelta"><span class="mi">🔙</span><div class="cc-mi-block"><span class="cc-mi-label">Vuelta</span><span>'+(c.vuelta.date?fmtDateShort(c.vuelta.date)+" ":"")+(c.vuelta.time?c.vuelta.time+"h ":"")+(c.vuelta.lugar?"· "+esc(c.vuelta.lugar):"")+"</span>"+(c.vuelta.transporte?'<span class="cc-mi-sub">'+esc(c.vuelta.transporte)+"</span>":"")+"</div></div>":"")+
-    (c.matches&&c.matches.length?c.matches.map(function(m){return'<div class="cc-mi"><span class="mi">'+matchIcon(m.matchType)+'</span><span style="font-weight:600">'+(m.rival?esc(m.rival):"Rival TBD")+'</span>'+(m.date||m.time?'<span style="color:var(--text-muted);margin-left:4px">'+(m.date?fmtDateShort(m.date)+" ":"")+(m.time?m.time+"h":"")+"</span>":"")+"</div>";}).join(""):"")+
+    (function(){
+      var tl=[];
+      if(c.conc&&(c.conc.date||c.conc.time||c.conc.lugar))
+        tl.push({s:c.conc.date||"0",h:'<div class="cc-mi" style="border-left:2px solid var(--navy);padding-left:8px;margin-left:4px"><div class="cc-mi-block"><span class="cc-mi-label">📍 Citación</span><span>'+(c.conc.date?fmtDateShort(c.conc.date)+" ":"")+(c.conc.time?c.conc.time+"h ":"")+(c.conc.lugar?"· "+esc(c.conc.lugar):"")+"</span>"+(c.conc.hotel?'<span class="cc-mi-sub">🏨 '+esc(c.conc.hotel)+"</span>":"")+"</div></div>"});
+      if(c.traslado&&(c.traslado.date||c.traslado.transporte||c.traslado.desde))
+        tl.push({s:c.traslado.date||"1",h:'<div class="cc-mi" style="border-left:2px solid #3B82F6;padding-left:8px;margin-left:4px"><div class="cc-mi-block"><span class="cc-mi-label">✈️ Traslado</span><span>'+(c.traslado.date?fmtDateShort(c.traslado.date)+" ":"")+(c.traslado.time?c.traslado.time+"h ":"")+(c.traslado.desde&&c.traslado.hasta?esc(c.traslado.desde)+" → "+esc(c.traslado.hasta):"")+"</span>"+(c.traslado.transporte?'<span class="cc-mi-sub">'+esc(c.traslado.transporte)+"</span>":"")+"</div></div>"});
+      if(c.matches&&c.matches.length)c.matches.forEach(function(m){
+        tl.push({s:m.date||"5",h:'<div class="cc-mi" style="border-left:2px solid var(--gold);padding-left:8px;margin-left:4px"><span style="font-weight:600">'+matchIcon(m.matchType)+" "+(m.rival?esc(m.rival):"TBD")+'</span>'+(m.date||m.time?'<span style="color:var(--text-muted);margin-left:4px">'+(m.date?fmtDateShort(m.date)+" ":"")+(m.time?m.time+"h":"")+"</span>":"")+"</div>"});
+      });
+      if(c.vuelta&&(c.vuelta.date||c.vuelta.time||c.vuelta.desde))
+        tl.push({s:c.vuelta.date||"9",h:'<div class="cc-mi" style="border-left:2px solid var(--text-muted);padding-left:8px;margin-left:4px"><div class="cc-mi-block"><span class="cc-mi-label">🔙 Vuelta</span><span>'+(c.vuelta.date?fmtDateShort(c.vuelta.date)+" ":"")+(c.vuelta.time?c.vuelta.time+"h ":"")+(c.vuelta.desde&&c.vuelta.hasta?esc(c.vuelta.desde)+" → "+esc(c.vuelta.hasta):"")+"</span>"+(c.vuelta.transporte?'<span class="cc-mi-sub">'+esc(c.vuelta.transporte)+"</span>":"")+"</div></div>"});
+      if(!tl.length)return"";
+      tl.sort(function(a,b){return a.s.localeCompare(b.s);});
+      return tl.map(function(t){return t.h;}).join("");
+    })()+
     "</div>"+(pc>0?'<div class="cc-players">'+chips+"</div>":"")+
     "</article>";
 }
