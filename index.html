@@ -130,6 +130,28 @@ body{background:var(--rm-dark);font-family:'Barlow',sans-serif;min-height:100vh;
 .c-prueba{background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-style:italic;}
 .c-multi{outline:2px solid #ef4444;outline-offset:1px;box-shadow:0 0 0 3px rgba(239,68,68,.25);}
 .ac-prueba-hint{padding:4px 9px 5px;font-size:9px;color:#94a3b8;border-top:1px dashed #e2e8f0;font-style:italic;}
+
+/* ── CALENDARIO SEMANA ── */
+#cal-overlay{position:fixed;inset:0;z-index:10010;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding-top:60px;}
+#cal-overlay.open{display:flex;}
+#cal-box{background:#0f1729;border:1px solid rgba(200,168,0,.3);border-radius:14px;padding:16px;width:320px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.6);}
+#cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+#cal-mes{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;color:#C8A800;text-transform:uppercase;letter-spacing:1px;}
+.cal-nav{background:none;border:1px solid rgba(200,168,0,.3);color:#C8A800;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+#cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cal-dow{text-align:center;font-size:10px;font-weight:700;color:rgba(255,255,255,.35);padding:2px 0 6px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;}
+.cal-day{text-align:center;padding:7px 2px;border-radius:8px;font-size:13px;font-weight:600;color:rgba(255,255,255,.75);cursor:pointer;font-family:'Barlow Condensed',sans-serif;transition:background .15s;}
+.cal-day:hover{background:rgba(200,168,0,.2);}
+.cal-day.otro-mes{color:rgba(255,255,255,.2);}
+.cal-day.hoy{color:#C8A800;}
+.cal-day.lunes-sel{background:#C8A800;color:#000;font-weight:900;border-radius:8px 0 0 8px;}
+.cal-day.semana-sel{background:rgba(200,168,0,.18);color:#fff;}
+.cal-day.semana-sel.domingo-sel{border-radius:0 8px 8px 0;}
+.cal-day.vacio{cursor:default;}
+#cal-footer{margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+#cal-sel-txt{font-size:11px;color:rgba(255,255,255,.5);font-family:'Barlow Condensed',sans-serif;}
+#cal-ok{padding:8px 20px;background:#C8A800;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;}
+#cal-cancel{padding:8px 14px;background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);border-radius:8px;font-size:13px;cursor:pointer;}
 .ac-group-hdr{
   padding:5px 9px 3px;
   font-family:'Barlow Condensed',sans-serif;
@@ -350,6 +372,25 @@ body{background:var(--rm-dark);font-family:'Barlow',sans-serif;min-height:100vh;
   <span class="save-status" id="save-status"></span>
 </div>
 <div class="tabs-scroll" id="tabs-dias"></div>
+
+<!-- Calendario semana -->
+<div id="cal-overlay">
+  <div id="cal-box">
+    <div id="cal-header">
+      <button class="cal-nav" id="cal-prev">‹</button>
+      <span id="cal-mes"></span>
+      <button class="cal-nav" id="cal-next">›</button>
+    </div>
+    <div id="cal-grid"></div>
+    <div id="cal-footer">
+      <span id="cal-sel-txt">Selecciona un lunes</span>
+      <div style="display:flex;gap:6px;">
+        <button id="cal-cancel" onclick="cerrarCal()">Cancelar</button>
+        <button id="cal-ok" onclick="aplicarSemana()">Ir a semana</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="tabs-scroll" id="tabs-eqs"></div>
 <div class="copy-bar" id="copy-bar">
   <span class="copy-bar-lbl">📋 Copiar a:</span>
@@ -613,30 +654,20 @@ function buildAddInput(eq, zona){
       const [t,l]=SNAP_SLOTS[n%SNAP_SLOTS.length]||[50,50];
       savePos(dia,eq,nombre,t,l);
     }
-    // Si el jugador ya está en otro equipo hoy → marcar como multi (borde rojo)
+    // ── Lógica de promoción / multi-equipo al añadir desde input
     const eqOrigen2 = origen[nombre];
-    const yaEnOtroEq = EQUIPOS.some(e=> e!==eq &&
-      ZONAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre))
+    // ¿Ya tiene presencia activa en otro equipo hoy? (excluye promovidos_1er)
+    const yaActivoEnOtro = EQUIPOS.some(e=> e!==eq &&
+      ZONAS_ACTIVAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre))
     );
-    if(yaEnOtroEq){
-      // Ya está en otro equipo → multi, no tocar el original
+    if(yaActivoEnOtro){
+      // Multi-equipo: aparece con borde rojo en ambos, no se mueve del original
       registrarMultiEq(dia, nombre, eq);
-      EQUIPOS.filter(e=> e!==eq && ZONAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre)))
+      EQUIPOS.filter(e=> e!==eq && ZONAS_ACTIVAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre)))
         .forEach(e=> registrarMultiEq(dia, nombre, e));
-    } else if(eqOrigen2 && eqOrigen2 !== eq && !yaEnOtroEq){
-      // Auto-promoción clásica (viene de columna promoción, no del campo)
-      ZONAS.forEach(z=>{
-        const d2 = data[dia][eqOrigen2]?.[z] || [];
-        const di = d2.indexOf(nombre);
-        if(di>=0) d2.splice(di,1);
-      });
-      if(!data[dia][eqOrigen2].promovidos_1er) data[dia][eqOrigen2].promovidos_1er=[];
-      if(!data[dia][eqOrigen2].promovidos_1er.includes(nombre)){
-        data[dia][eqOrigen2].promovidos_1er.push(nombre);
-      }
-      if(!promInfo[dia]) promInfo[dia]={};
-      if(!promInfo[dia][eqOrigen2]) promInfo[dia][eqOrigen2]={};
-      promInfo[dia][eqOrigen2][nombre] = eq;
+    } else if(eqOrigen2 && eqOrigen2 !== eq && eqOrigen2 !== 'PRUEBA'){
+      // Promoción clásica: jugador de otro equipo → quitarlo de origen y añadir a promovidos
+      autoPromocionar(nombre, eqOrigen2, eq);
     }
 
     data[dia][eq][zona].push(nombre);
@@ -1224,24 +1255,142 @@ function renderDias(){
     b.onclick=()=>{dia=d;render();};
     w.appendChild(b);
   });
-  // Botón para cambiar semana (solo visible una vez)
-  if(!document.getElementById('btn-semana')){
-    const btn=mk('button','tab-dia');
-    btn.id='btn-semana'; btn.title='Cambiar semana';
-    btn.textContent='📅';
-    btn.style.cssText='font-size:14px;padding:4px 8px;opacity:.6;';
-    btn.onclick=()=>{
-      const inp = prompt('Fecha del lunes (DD/MM/AAAA):');
-      if(!inp) return;
-      const [d,m,a] = inp.split('/').map(Number);
-      if(!d||!m||!a) return;
-      const lun = new Date(a,m-1,d);
-      FECHAS = calcFechasSemana(lun);
-      autoGuardar(); renderDias();
-    };
-    w.appendChild(btn);
+  // Botón calendario
+  const btn=mk('button','tab-dia');
+  btn.id='btn-semana'; btn.title='Cambiar semana';
+  btn.textContent='📅';
+  btn.style.cssText='font-size:14px;padding:4px 8px;opacity:.7;flex-shrink:0;';
+  btn.onclick=()=> abrirCal();
+  w.appendChild(btn);
+}
+
+// ══════════════════════════════════════════════════
+// CALENDARIO MINI
+// ══════════════════════════════════════════════════
+let _calFecha = new Date(); // mes visible en el calendario
+let _calLunesSel = null;    // lunes seleccionado
+
+const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS_DOW = ['L','M','X','J','V','S','D'];
+
+function abrirCal(){
+  // Iniciar en el lunes actual de FECHAS
+  const partes = FECHAS['LUNES'] ? FECHAS['LUNES'].split('/') : null;
+  if(partes){
+    const hoy = new Date();
+    _calFecha = new Date(hoy.getFullYear(), parseInt(partes[1])-1, parseInt(partes[0]));
+    _calLunesSel = new Date(_calFecha);
+  } else {
+    _calFecha = new Date();
+    _calLunesSel = null;
+  }
+  renderCal();
+  document.getElementById('cal-overlay').classList.add('open');
+}
+
+function cerrarCal(){
+  document.getElementById('cal-overlay').classList.remove('open');
+}
+
+function renderCal(){
+  const mes = _calFecha.getMonth();
+  const anyo = _calFecha.getFullYear();
+  document.getElementById('cal-mes').textContent = MESES_ES[mes]+' '+anyo;
+
+  // Calcular lunes seleccionado (de FECHAS actuales) para resaltar semana
+  const lunesActual = (() => {
+    const p = FECHAS['LUNES'] ? FECHAS['LUNES'].split('/') : null;
+    if(!p) return null;
+    return new Date(anyo, parseInt(p[1])-1, parseInt(p[0]));
+  })();
+
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML='';
+
+  // Cabecera días
+  DIAS_DOW.forEach(d=>{
+    const el=mk('div','cal-dow'); el.textContent=d; grid.appendChild(el);
+  });
+
+  // Primer día del mes → qué día de la semana es (lunes=0)
+  const primerDia = new Date(anyo, mes, 1);
+  let dow = primerDia.getDay(); // 0=dom
+  dow = dow===0 ? 6 : dow-1;   // convertir a lunes=0
+
+  // Celdas vacías inicio
+  for(let i=0;i<dow;i++){
+    const el=mk('div','cal-day vacio'); grid.appendChild(el);
+  }
+
+  const diasEnMes = new Date(anyo, mes+1, 0).getDate();
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+
+  for(let d=1;d<=diasEnMes;d++){
+    const fecha = new Date(anyo, mes, d);
+    const dowDia = fecha.getDay();
+    const esLunes = dowDia===1;
+    const el=mk('div','cal-day');
+    el.textContent=d;
+
+    // ¿Es hoy?
+    if(fecha.getTime()===hoy.getTime()) el.classList.add('hoy');
+
+    // ¿Está en la semana seleccionada?
+    if(_calLunesSel){
+      const domingo = new Date(_calLunesSel); domingo.setDate(_calLunesSel.getDate()+6);
+      if(fecha>=_calLunesSel && fecha<=domingo){
+        el.classList.add('semana-sel');
+        if(esLunes) el.classList.add('lunes-sel');
+        if(dowDia===0) el.classList.add('domingo-sel');
+      }
+    }
+
+    // Solo los lunes son clicables
+    if(esLunes){
+      el.onclick=()=>{
+        _calLunesSel = new Date(anyo, mes, d);
+        const txt = d+'/'+(mes+1)+'/'+anyo;
+        document.getElementById('cal-sel-txt').textContent = 'Semana del '+txt;
+        renderCal();
+      };
+    } else {
+      el.style.cursor='default';
+      el.style.opacity='.6';
+    }
+    grid.appendChild(el);
+  }
+
+  // Actualizar texto
+  if(_calLunesSel){
+    const d=_calLunesSel.getDate(), m=_calLunesSel.getMonth()+1, a=_calLunesSel.getFullYear();
+    document.getElementById('cal-sel-txt').textContent='Semana del '+d+'/'+m+'/'+a;
+  } else {
+    document.getElementById('cal-sel-txt').textContent='Selecciona un lunes';
   }
 }
+
+function aplicarSemana(){
+  if(!_calLunesSel){ toast('Selecciona un lunes'); return; }
+  FECHAS = calcFechasSemana(_calLunesSel);
+  autoGuardar();
+  renderDias();
+  cerrarCal();
+  toast('📅 Semana actualizada');
+}
+
+// Navegación meses
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('cal-prev').onclick=()=>{
+    _calFecha.setMonth(_calFecha.getMonth()-1); renderCal();
+  };
+  document.getElementById('cal-next').onclick=()=>{
+    _calFecha.setMonth(_calFecha.getMonth()+1); renderCal();
+  };
+  // Cerrar al clicar fuera
+  document.getElementById('cal-overlay').onclick=(e)=>{
+    if(e.target===document.getElementById('cal-overlay')) cerrarCal();
+  };
+});
 
 function renderEqs(){
   const w=document.getElementById('tabs-eqs'); w.innerHTML='';
@@ -1446,6 +1595,26 @@ const EQ_COLORS={
 };
 function mk(tag,cls=''){const e=document.createElement(tag);if(cls)e.className=cls;return e;}
 
+// ── Auto-promoción: mover jugador al equipo destino y registrar en origen
+function autoPromocionar(nombre, eqOrigen, eqDestino){
+  if(!eqOrigen || eqOrigen===eqDestino || eqOrigen==='PRUEBA') return;
+  // Quitar de todas las zonas activas del equipo origen
+  ZONAS_ACTIVAS.forEach(z=>{
+    const arr = data[dia][eqOrigen]?.[z] || [];
+    const i = arr.indexOf(nombre);
+    if(i>=0) arr.splice(i,1);
+  });
+  // Añadir a promovidos_1er del equipo origen
+  if(!data[dia][eqOrigen].promovidos_1er) data[dia][eqOrigen].promovidos_1er=[];
+  if(!data[dia][eqOrigen].promovidos_1er.includes(nombre)){
+    data[dia][eqOrigen].promovidos_1er.push(nombre);
+  }
+  // Registrar en promInfo
+  if(!promInfo[dia]) promInfo[dia]={};
+  if(!promInfo[dia][eqOrigen]) promInfo[dia][eqOrigen]={};
+  promInfo[dia][eqOrigen][nombre] = eqDestino;
+}
+
 // ── Multi-equipo helpers
 function registrarMultiEq(d, nombre, eq){
   if(!multiEq[d]) multiEq[d]={};
@@ -1575,12 +1744,7 @@ function move(fromEq,fromZona,toEq,toZona,nombre){
   const arr=data[dia][fromEq][fromZona];
   const i=arr.indexOf(nombre); if(i===-1)return;
 
-  // ── ¿El jugador ya está en otro equipo hoy? → es multi-equipo
-  const yaEnOtroEq = EQUIPOS.some(e=> e!==toEq &&
-    ZONAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre))
-  );
-
-  // Si mueve dentro del mismo equipo → movimiento normal
+  // ── Movimiento dentro del mismo equipo
   if(fromEq === toEq){
     arr.splice(i,1);
     data[dia][toEq][toZona].push(nombre);
@@ -1588,22 +1752,18 @@ function move(fromEq,fromZona,toEq,toZona,nombre){
     return;
   }
 
-  // Si el jugador ya está en toEq (no arrastrarlo desde ahí)
-  const yaEnDestino = ZONAS.some(z=>(data[dia][toEq]?.[z]||[]).includes(nombre));
-  if(yaEnDestino){
-    // Solo recolocar dentro de toEq si viene de toEq
-    arr.splice(i,1);
-    data[dia][toEq][toZona].push(nombre);
-    toast(nombre+' → '+ZONA_NAMES[toZona]);
-    borrarMultiEq(dia, nombre, fromEq);
-    return;
-  }
+  // ── Movimiento entre equipos distintos
+  const eqOrigen = origen[nombre];
 
-  // ── Mover a equipo distinto
-  arr.splice(i,1);
+  // ¿Ya tiene presencia activa en otro equipo (distinto del origen del drag)?
+  const yaActivoEnOtro = EQUIPOS.some(e=> e!==fromEq && e!==toEq &&
+    ZONAS_ACTIVAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre))
+  );
 
-  // Si ya estaba en algún equipo → borde rojo (multi), NO quitar del original
-  if(yaEnOtroEq){
+  arr.splice(i,1); // Quitar de zona origen
+
+  if(yaActivoEnOtro){
+    // Multi-equipo: añadir al destino y marcar rojo en todos
     registrarMultiEq(dia, nombre, toEq);
     registrarMultiEq(dia, nombre, fromEq);
     data[dia][toEq][toZona].push(nombre);
@@ -1611,26 +1771,22 @@ function move(fromEq,fromZona,toEq,toZona,nombre){
     return;
   }
 
-  // Promoción clásica: jugador de su equipo origen va a otro
-  const eqOrigen = origen[nombre];
-  if(eqOrigen && eqOrigen !== toEq){
-    ZONAS.forEach(z=>{
-      const d2 = data[dia][eqOrigen]?.[z] || [];
-      const di = d2.indexOf(nombre);
-      if(di>=0) d2.splice(di,1);
-    });
-    if(!data[dia][eqOrigen].promovidos_1er) data[dia][eqOrigen].promovidos_1er=[];
-    if(!data[dia][eqOrigen].promovidos_1er.includes(nombre)){
-      data[dia][eqOrigen].promovidos_1er.push(nombre);
-    }
-    if(!promInfo[dia]) promInfo[dia]={};
-    if(!promInfo[dia][eqOrigen]) promInfo[dia][eqOrigen]={};
-    promInfo[dia][eqOrigen][nombre] = toEq;
+  // ¿Vuelve a su equipo de origen? → limpiar promoción
+  if(toEq === eqOrigen){
+    if(promInfo[dia]?.[toEq]?.[nombre]) delete promInfo[dia][toEq][nombre];
+    // Quitar de promovidos_1er del equipo origen si estaba ahí
+    const pArr = data[dia][toEq]?.promovidos_1er || [];
+    const pi = pArr.indexOf(nombre);
+    if(pi>=0) pArr.splice(pi,1);
+    borrarMultiEq(dia, nombre, fromEq);
+    data[dia][toEq][toZona].push(nombre);
+    toast(nombre+' → '+ZONA_NAMES[toZona]);
+    return;
   }
 
-  // Si vuelve a su equipo origen, limpiar promoción
-  if(toEq === origen[nombre] && promInfo[dia]?.[toEq]?.[nombre]){
-    delete promInfo[dia][toEq][nombre];
+  // ¿Va a un equipo distinto al suyo? → auto-promoción
+  if(eqOrigen && eqOrigen !== toEq && eqOrigen !== 'PRUEBA'){
+    autoPromocionar(nombre, eqOrigen, toEq);
   }
 
   data[dia][toEq][toZona].push(nombre);
