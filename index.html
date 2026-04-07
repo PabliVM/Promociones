@@ -153,6 +153,25 @@ body{font-family:'Inter',system-ui,sans-serif;background:#13131A;color:var(--tex
 .dp-logistica-conc{border-left:3px solid var(--navy)}
 .dp-logistica-vuelta{border-left:3px solid var(--text-muted)}
 .dp-logistica-traslado{border-left:3px solid #3B82F6}
+
+/* TIMELINE */
+.dp-timeline{position:relative;padding-left:28px;margin-bottom:16px}
+.dp-timeline::before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:2px;background:var(--border-strong)}
+.dp-tl-item{position:relative;margin-bottom:18px}
+.dp-tl-item:last-child{margin-bottom:0}
+.dp-tl-dot{position:absolute;left:-28px;top:2px;width:20px;height:20px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:9px;background:var(--off-white)}
+.dp-tl-dot-cite{border-color:var(--navy);background:rgba(26,58,143,.12)}
+.dp-tl-dot-trasl{border-color:#3B82F6;background:rgba(59,130,246,.12)}
+.dp-tl-dot-vuelta{border-color:var(--text-muted);background:rgba(107,114,128,.12)}
+.dp-tl-dot-match{border-color:var(--gold);background:rgba(200,169,110,.15)}
+.dp-tl-type{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.dp-tl-type-cite{color:#7BA4F8}
+.dp-tl-type-trasl{color:#60A5FA}
+.dp-tl-type-vuelta{color:var(--text-muted)}
+.dp-tl-type-match{color:var(--gold)}
+.dp-tl-date{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.dp-tl-detail{font-size:13px;color:var(--text-mid);line-height:1.5}
+.dp-tl-note{font-size:12px;color:var(--text-mid);background:var(--off-white-3);padding:6px 10px;border-radius:var(--r-sm);margin-top:6px;line-height:1.5;border:1px solid var(--border)}
 .fsec-traslado{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3)}
 .fsec-traslado .fsec-lbl{color:#93C5FD}
 .dp-log-hdr{display:flex;align-items:center;gap:6px;margin-bottom:8px}
@@ -958,37 +977,50 @@ function callupDetail(c){
     (c.location?'<div class="di"><span class="di-l">📍 Lugar</span><span class="di-v">'+esc(c.location)+"</span></div>":"")+
     (c.limitDate&&c.convType==="provisional"?'<div class="di"><span class="di-l">⏰ Límite confirmación</span><span class="di-v">'+fmtDateShort(c.limitDate)+"</span></div>":"")+
     "</div>"+
-    (c.conc&&(c.conc.date||c.conc.time||c.conc.lugar||c.conc.hotel)?
-      '<div class="dp-logistica dp-logistica-conc">'+
-      '<div class="dp-log-hdr"><span class="dp-log-ico">📍</span><span class="dp-log-title">Citación</span></div>'+
-      '<div class="dp-log-body">'+
-      (c.conc.date||c.conc.time?'<div class="dp-log-row"><span class="dp-log-l">Fecha y hora</span><span class="dp-log-v">'+(c.conc.date?fmtDateShort(c.conc.date)+" ":"")+(c.conc.time?c.conc.time+"h":"")+"</span></div>":"")+
-      (c.conc.lugar?'<div class="dp-log-row"><span class="dp-log-l">Lugar de citación</span><span class="dp-log-v">'+esc(c.conc.lugar)+"</span></div>":"")+
-      (c.conc.hotel?'<div class="dp-log-row"><span class="dp-log-l">🏨 Alojamiento</span><span class="dp-log-v">'+esc(c.conc.hotel)+"</span></div>":"")+
-      "</div></div>":"")+
-    (c.traslado&&(c.traslado.date||c.traslado.time||c.traslado.lugar||c.traslado.transporte)?
-      '<div class="dp-logistica dp-logistica-traslado">'+
-      '<div class="dp-log-hdr"><span class="dp-log-ico">✈️</span><span class="dp-log-title">Traslado / Salida</span></div>'+
-      '<div class="dp-log-body">'+
-      (c.traslado.date||c.traslado.time?'<div class="dp-log-row"><span class="dp-log-l">Fecha y hora</span><span class="dp-log-v">'+(c.traslado.date?fmtDateShort(c.traslado.date)+" ":"")+(c.traslado.time?c.traslado.time+"h":"")+"</span></div>":"")+
-      (c.traslado.lugar?'<div class="dp-log-row"><span class="dp-log-l">Punto de salida</span><span class="dp-log-v">'+esc(c.traslado.lugar)+"</span></div>":"")+
-      (c.traslado.transporte?'<div class="dp-log-row"><span class="dp-log-l">Transporte</span><span class="dp-log-v">'+esc(c.traslado.transporte)+"</span></div>":"")+
-      "</div></div>":"")+
-    (c.vuelta&&(c.vuelta.date||c.vuelta.time||c.vuelta.lugar||c.vuelta.transporte)?
-      '<div class="dp-logistica dp-logistica-vuelta">'+
-      '<div class="dp-log-hdr"><span class="dp-log-ico">🔙</span><span class="dp-log-title">Vuelta</span></div>'+
-      '<div class="dp-log-body">'+
-      (c.vuelta.date||c.vuelta.time?'<div class="dp-log-row"><span class="dp-log-l">Fecha y hora</span><span class="dp-log-v">'+(c.vuelta.date?fmtDateShort(c.vuelta.date)+" ":"")+(c.vuelta.time?c.vuelta.time+"h":"")+"</span></div>":"")+
-      (c.vuelta.lugar?'<div class="dp-log-row"><span class="dp-log-l">Punto de salida</span><span class="dp-log-v">'+esc(c.vuelta.lugar)+"</span></div>":"")+
-      (c.vuelta.transporte?'<div class="dp-log-row"><span class="dp-log-l">Transporte</span><span class="dp-log-v">'+esc(c.vuelta.transporte)+"</span></div>":"")+
-      "</div></div>":"")+
-    (c.matches&&c.matches.length?'<div class="dp-matches"><h4 class="dp-st">⚽ Partidos / Entrenamientos ('+c.matches.length+")</h4>"+
-    c.matches.map(function(m){
-      var dt=m.date?new Date(m.date+"T12:00:00").toLocaleDateString("es-ES",{weekday:"short",day:"2-digit",month:"short"}):"";
-      return'<div class="dp-match-item"><span class="dp-match-ball">'+matchIcon(m.matchType)+'</span>'+
-        '<div class="dp-match-info"><div class="dp-match-date">'+dt+'</div><div class="dp-match-rival">'+(m.matchType==="entrenamiento"?"":"vs ")+esc(m.rival||"Por confirmar")+"</div></div>"+
-        (m.time?'<span class="dp-match-time">'+m.time+"h</span>":"")+"</div>";
-    }).join("")+"</div>":"")+
+    (function(){
+      var items=[];
+      // Citación
+      if(c.conc&&(c.conc.date||c.conc.time||c.conc.lugar||c.conc.hotel)){
+        var h2='<div class="dp-tl-item"><div class="dp-tl-dot dp-tl-dot-cite"></div><div class="dp-tl-type dp-tl-type-cite">Citación</div>';
+        if(c.conc.date||c.conc.time)h2+='<div class="dp-tl-date">'+(c.conc.date?fmtDateShort(c.conc.date)+" ":"")+(c.conc.time?c.conc.time+"h":"")+"</div>";
+        if(c.conc.lugar)h2+='<div class="dp-tl-detail">'+esc(c.conc.lugar)+"</div>";
+        if(c.conc.hotel)h2+='<div class="dp-tl-detail">🏨 '+esc(c.conc.hotel)+"</div>";
+        if(c.conc.notas)h2+='<div class="dp-tl-note">'+esc(c.conc.notas)+"</div>";
+        h2+="</div>";items.push({sort:c.conc.date||c.startDate||"0",html:h2});
+      }
+      // Traslado
+      if(c.traslado&&(c.traslado.date||c.traslado.time||c.traslado.desde||c.traslado.transporte||c.traslado.hasta)){
+        var h3='<div class="dp-tl-item"><div class="dp-tl-dot dp-tl-dot-trasl"></div><div class="dp-tl-type dp-tl-type-trasl">Traslado</div>';
+        if(c.traslado.date||c.traslado.time)h3+='<div class="dp-tl-date">'+(c.traslado.date?fmtDateShort(c.traslado.date)+" ":"")+(c.traslado.time?c.traslado.time+"h":"")+"</div>";
+        if(c.traslado.desde||c.traslado.hasta)h3+='<div class="dp-tl-detail">'+(c.traslado.desde?esc(c.traslado.desde):"")+(c.traslado.desde&&c.traslado.hasta?" → ":"")+(c.traslado.hasta?esc(c.traslado.hasta):"")+"</div>";
+        if(c.traslado.transporte)h3+='<div class="dp-tl-detail">'+esc(c.traslado.transporte)+"</div>";
+        if(c.traslado.hotel)h3+='<div class="dp-tl-detail">🏨 '+esc(c.traslado.hotel)+"</div>";
+        if(c.traslado.notas)h3+='<div class="dp-tl-note">'+esc(c.traslado.notas)+"</div>";
+        h3+="</div>";items.push({sort:c.traslado.date||c.startDate||"1",html:h3});
+      }
+      // Partidos / Entrenamientos
+      if(c.matches&&c.matches.length){
+        c.matches.forEach(function(m){
+          var dt=m.date?new Date(m.date+"T12:00:00").toLocaleDateString("es-ES",{weekday:"short",day:"2-digit",month:"short"}):"";
+          var h4='<div class="dp-tl-item"><div class="dp-tl-dot dp-tl-dot-match"></div><div class="dp-tl-type dp-tl-type-match">'+matchIcon(m.matchType)+" "+(m.matchType==="entrenamiento"?"Entrenamiento":(m.matchType==="oficial"?"Partido oficial":"Partido amistoso"))+"</div>";
+          if(dt)h4+='<div class="dp-tl-date">'+dt+(m.time?" · "+m.time+"h":"")+"</div>";
+          if(m.rival)h4+='<div class="dp-tl-detail">'+(m.matchType==="entrenamiento"?"":"vs ")+esc(m.rival)+"</div>";
+          h4+="</div>";items.push({sort:m.date||"5",html:h4});
+        });
+      }
+      // Vuelta
+      if(c.vuelta&&(c.vuelta.date||c.vuelta.time||c.vuelta.desde||c.vuelta.transporte||c.vuelta.hasta)){
+        var h5='<div class="dp-tl-item"><div class="dp-tl-dot dp-tl-dot-vuelta"></div><div class="dp-tl-type dp-tl-type-vuelta">Vuelta</div>';
+        if(c.vuelta.date||c.vuelta.time)h5+='<div class="dp-tl-date">'+(c.vuelta.date?fmtDateShort(c.vuelta.date)+" ":"")+(c.vuelta.time?c.vuelta.time+"h":"")+"</div>";
+        if(c.vuelta.desde||c.vuelta.hasta)h5+='<div class="dp-tl-detail">'+(c.vuelta.desde?esc(c.vuelta.desde):"")+(c.vuelta.desde&&c.vuelta.hasta?" → ":"")+(c.vuelta.hasta?esc(c.vuelta.hasta):"")+"</div>";
+        if(c.vuelta.transporte)h5+='<div class="dp-tl-detail">'+esc(c.vuelta.transporte)+"</div>";
+        if(c.vuelta.notas)h5+='<div class="dp-tl-note">'+esc(c.vuelta.notas)+"</div>";
+        h5+="</div>";items.push({sort:c.vuelta.date||c.endDate||"9",html:h5});
+      }
+      if(!items.length)return"";
+      items.sort(function(a,b){return a.sort.localeCompare(b.sort);});
+      return'<h4 class="dp-st">📋 Logística y partidos</h4><div class="dp-timeline">'+items.map(function(i){return i.html;}).join("")+"</div>";
+    })()+
     '<div style="margin-bottom:16px"><h4 class="dp-st">👕 Jugadores convocados ('+pc+")</h4><ul class=\"pl\">"+rows+"</ul></div>"+
     (c.notes?'<div class="dp-notes"><h4 class="dp-st">📝 Observaciones</h4><p class="notes-t">'+esc(c.notes)+"</p></div>":"")+
     '<div class="dp-act" style="display:flex;gap:8px;flex-wrap:wrap">'+promBtn+descBtn+restoreBtn+printBtn+editBtn+delBtn+"</div>";
@@ -1136,8 +1168,8 @@ function openDetail(id){
         var pg=$("pais-g");if(pg&&selKey(c.selectionType)==="internacional")pg.style.display="block";
         var fields={title:c.title,startDate:c.startDate,endDate:c.endDate,rival:c.rival||"",location:c.location||"",notes:c.notes||"",convType:c.convType||"provisional",limitDate:c.limitDate||""};
         Object.keys(fields).forEach(function(k){if(fields[k]===undefined||fields[k]===null)return;var el=form.querySelector('[name="'+k+'"]');if(el)el.value=fields[k];});
-        if(c.conc){var cf2={concDate:c.conc.date,concTime:c.conc.time,concLugar:c.conc.lugar,concHotel:c.conc.hotel};Object.keys(cf2).forEach(function(k){if(!cf2[k])return;var el=form.querySelector('[name="'+k+'"]');if(el)el.value=cf2[k];}); }if(c.traslado){var ct={trasladoDesde:c.traslado.desde,trasladoDate:c.traslado.date,trasladoTime:c.traslado.time,trasladoTransporte:c.traslado.transporte,trasladoHasta:c.traslado.hasta,trasladoHotel:c.traslado.hotel};Object.keys(ct).forEach(function(k){if(!ct[k])return;var el=form.querySelector('[name="'+k+'"]');if(el)el.value=ct[k];});}
-if(c.vuelta){var vf={vueltaDesde:c.vuelta.desde,vueltaDate:c.vuelta.date,vueltaTime:c.vuelta.time,vueltaTransporte:c.vuelta.transporte,vueltaHasta:c.vuelta.hasta};Object.keys(vf).forEach(function(k){if(!vf[k])return;var el=form.querySelector('[name="'+k+'"]');if(el)el.value=vf[k];});}        if(c.matches&&c.matches.length){
+        if(c.conc){var cf2={concDate:c.conc.date,concTime:c.conc.time,concLugar:c.conc.lugar,concHotel:c.conc.hotel,concNotas:c.conc.notas};Object.keys(cf2).forEach(function(k){if(!cf2[k])return;var el=form.querySelector('[name="'+k+'"]');if(el)el.value=cf2[k];}); }if(c.traslado){var ct={trasladoDesde:c.traslado.desde,trasladoDate:c.traslado.date,trasladoTime:c.traslado.time,trasladoTransporte:c.traslado.transporte,trasladoHasta:c.traslado.hasta,trasladoHotel:c.traslado.hotel,trasladoNotas:c.traslado.notas};Object.keys(ct).forEach(function(k){if(!ct[k])return;var el=form.querySelector('[name="'+k+'"]');if(el)el.value=ct[k];});}
+if(c.vuelta){var vf={vueltaDesde:c.vuelta.desde,vueltaDate:c.vuelta.date,vueltaTime:c.vuelta.time,vueltaTransporte:c.vuelta.transporte,vueltaHasta:c.vuelta.hasta,vueltaNotas:c.vuelta.notas};Object.keys(vf).forEach(function(k){if(!vf[k])return;var el=form.querySelector('[name="'+k+'"]');if(el)el.value=vf[k];});}        if(c.matches&&c.matches.length){
           var ml=$("matches-list");if(ml){ml.innerHTML="";
             c.matches.forEach(function(m,i){
               var row=document.createElement("div");row.className="match-row";
@@ -1497,17 +1529,20 @@ function renderNueva(){
 '<div class="frow"><div class="fg"><label class="fl">Fecha citación</label><input class="fi" type="date" name="concDate"/></div><div class="fg"><label class="fl">Hora</label><input class="fi" type="time" name="concTime"/></div></div>'+
 '<div class="fg"><label class="fl">Lugar de citación</label><input class="fi" type="text" name="concLugar" placeholder="Ej: Ciudad del Fútbol, Las Rozas..."/></div>'+
 '<div class="fg"><label class="fl">Alojamiento</label><input class="fi" type="text" name="concHotel" placeholder="Ej: Hotel NH Las Rozas..."/></div>'+
+'<div class="fg"><label class="fl">Notas citación</label><textarea class="fta" name="concNotas" rows="2" placeholder="Ej: Presentarse con DNI. Cena a las 21:00..." style="min-height:50px"></textarea></div>'+
 '<div class="fsec fsec-traslado"><span class="fsec-ico">✈️</span><span class="fsec-lbl">Traslado (ida)</span></div>'+
 '<div class="fg"><label class="fl">Desde (origen)</label><input class="fi" type="text" name="trasladoDesde" placeholder="Ej: Aeropuerto T4 Madrid..."/></div>'+
 '<div class="frow"><div class="fg"><label class="fl">Fecha salida</label><input class="fi" type="date" name="trasladoDate"/></div><div class="fg"><label class="fl">Hora</label><input class="fi" type="time" name="trasladoTime"/></div></div>'+
 '<div class="fg"><label class="fl">Medio y localizador</label><input class="fi" type="text" name="trasladoTransporte" placeholder="Ej: Vuelo IB1234 · Localizador ABC123"/></div>'+
 '<div class="fg"><label class="fl">Hasta (destino)</label><input class="fi" type="text" name="trasladoHasta" placeholder="Ej: Aeropuerto de Lisboa..."/></div>'+
 '<div class="fg"><label class="fl">Alojamiento en destino</label><input class="fi" type="text" name="trasladoHotel" placeholder="Ej: Hotel Marriott Lisboa..."/></div>'+
+'<div class="fg"><label class="fl">Notas traslado</label><textarea class="fta" name="trasladoNotas" rows="2" placeholder="Ej: Bus desde aeropuerto al hotel (30 min)..." style="min-height:50px"></textarea></div>'+
 '<div class="fsec fsec-vuelta"><span class="fsec-ico">🔙</span><span class="fsec-lbl">Vuelta</span></div>'+
 '<div class="fg"><label class="fl">Desde (origen vuelta)</label><input class="fi" type="text" name="vueltaDesde" placeholder="Ej: Aeropuerto de Lisboa..."/></div>'+
 '<div class="frow"><div class="fg"><label class="fl">Fecha vuelta</label><input class="fi" type="date" name="vueltaDate"/></div><div class="fg"><label class="fl">Hora</label><input class="fi" type="time" name="vueltaTime"/></div></div>'+
 '<div class="fg"><label class="fl">Medio y localizador</label><input class="fi" type="text" name="vueltaTransporte" placeholder="Ej: Vuelo IB5678 · Localizador XYZ789"/></div>'+
 '<div class="fg"><label class="fl">Hasta (destino vuelta)</label><input class="fi" type="text" name="vueltaHasta" placeholder="Ej: Aeropuerto T4 Madrid..."/></div>'+
+'<div class="fg"><label class="fl">Notas vuelta</label><textarea class="fta" name="vueltaNotas" rows="2" placeholder="Ej: Bus al CRM. Llegada 16:30h. Recogida familias..." style="min-height:50px"></textarea></div>'+
     '<div class="fg matches-wrap"><label class="fl">Partidos / Entrenamientos</label><div id="matches-list"></div><button type="button" class="btn-add-match" id="btn-add-match">+ Añadir partido / entrenamiento</button></div>'+
     '<div class="fg"><label class="fl">Lugar de concentración</label><input class="fi" type="text" name="location" placeholder="Ej: Ciudad del Fútbol, Las Rozas"/></div>'+
     '<div class="fg"><label class="fl">Jugadores convocados</label>'+
@@ -1641,9 +1676,9 @@ function renderNueva(){
       limitDate:fd.get("limitDate")||"",
       location:fd.get("location")||"",
       notes:fd.get("notes")||"",
-      conc:{date:fd.get("concDate")||"",time:fd.get("concTime")||"",lugar:fd.get("concLugar")||"",hotel:fd.get("concHotel")||""},
-      traslado:{desde:fd.get("trasladoDesde")||"",date:fd.get("trasladoDate")||"",time:fd.get("trasladoTime")||"",transporte:fd.get("trasladoTransporte")||"",hasta:fd.get("trasladoHasta")||"",hotel:fd.get("trasladoHotel")||""},
-      vuelta:{desde:fd.get("vueltaDesde")||"",date:fd.get("vueltaDate")||"",time:fd.get("vueltaTime")||"",transporte:fd.get("vueltaTransporte")||"",hasta:fd.get("vueltaHasta")||""},
+      conc:{date:fd.get("concDate")||"",time:fd.get("concTime")||"",lugar:fd.get("concLugar")||"",hotel:fd.get("concHotel")||"",notas:fd.get("concNotas")||""},
+      traslado:{desde:fd.get("trasladoDesde")||"",date:fd.get("trasladoDate")||"",time:fd.get("trasladoTime")||"",transporte:fd.get("trasladoTransporte")||"",hasta:fd.get("trasladoHasta")||"",hotel:fd.get("trasladoHotel")||"",notas:fd.get("trasladoNotas")||""},
+      vuelta:{desde:fd.get("vueltaDesde")||"",date:fd.get("vueltaDate")||"",time:fd.get("vueltaTime")||"",transporte:fd.get("vueltaTransporte")||"",hasta:fd.get("vueltaHasta")||"",notas:fd.get("vueltaNotas")||""},
       matches:matchesData,
       players:players
     };
