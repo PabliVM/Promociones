@@ -129,6 +129,9 @@ body{background:var(--rm-dark);font-family:'Barlow',sans-serif;min-height:100vh;
 .ac-item .ac-eq{font-size:8px;font-weight:400;color:#94a3b8;letter-spacing:.2px;text-transform:none;}
 .c-prueba{background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-style:italic;}
 .c-multi{outline:2px solid #ef4444;outline-offset:1px;box-shadow:0 0 0 3px rgba(239,68,68,.25);}
+#trash-zone{position:fixed;bottom:24px;right:20px;width:58px;height:58px;border-radius:50%;background:#ef4444;color:#fff;font-size:24px;display:none;align-items:center;justify-content:center;z-index:9998;box-shadow:0 4px 16px rgba(239,68,68,.5);transition:transform .15s,background .15s;}
+#trash-zone.visible{display:flex;}
+#trash-zone.over{transform:scale(1.2);background:#b91c1c;}
 .ac-prueba-hint{padding:4px 9px 5px;font-size:9px;color:#94a3b8;border-top:1px dashed #e2e8f0;font-style:italic;}
 
 /* ── CALENDARIO SEMANA ── */
@@ -372,6 +375,9 @@ body{background:var(--rm-dark);font-family:'Barlow',sans-serif;min-height:100vh;
   <span class="save-status" id="save-status"></span>
 </div>
 <div class="tabs-scroll" id="tabs-dias"></div>
+
+<!-- Papelera flotante -->
+<div id="trash-zone">🗑️</div>
 
 <!-- Calendario semana -->
 <div id="cal-overlay">
@@ -637,38 +643,13 @@ function buildAddInput(eq, zona){
   }
 
   function elegir(nombre){
-    if(zona!=='campo'){
-      // No contar la propia zona como duplicado
-      const yaEsta=ZONAS.some(z=> z!==zona && (data[dia][eq][z]||[]).includes(nombre));
-      if(yaEsta){
-        showAlert('⚠️ '+nombre+' ya está en '+eq+'. ¿Añadir igualmente?',()=>{
-          data[dia][eq][zona].push(nombre);
-          toast(nombre+' → '+ZONA_NAMES[zona]);
-          render();
-        });
-        input.value='';list.classList.remove('open');return;
-      }
-    }
+    // Sin bloqueo por duplicados — libertad total
     if(zona==='campo'){
       const n=data[dia][eq].campo.length;
       const [t,l]=SNAP_SLOTS[n%SNAP_SLOTS.length]||[50,50];
       savePos(dia,eq,nombre,t,l);
     }
-    // ── Lógica de promoción / multi-equipo al añadir desde input
-    const eqOrigen2 = origen[nombre];
-    // ¿Ya tiene presencia activa en otro equipo hoy? (excluye promovidos_1er)
-    const yaActivoEnOtro = EQUIPOS.some(e=> e!==eq &&
-      ZONAS_ACTIVAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre))
-    );
-    if(yaActivoEnOtro){
-      // Multi-equipo: aparece con borde rojo en ambos, no se mueve del original
-      registrarMultiEq(dia, nombre, eq);
-      EQUIPOS.filter(e=> e!==eq && ZONAS_ACTIVAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre)))
-        .forEach(e=> registrarMultiEq(dia, nombre, e));
-    } else if(eqOrigen2 && eqOrigen2 !== eq && eqOrigen2 !== 'PRUEBA'){
-      // Promoción clásica: jugador de otro equipo → quitarlo de origen y añadir a promovidos
-      autoPromocionar(nombre, eqOrigen2, eq);
-    }
+    // Sin lógica automática — el jugador se añade donde el usuario lo pone
 
     data[dia][eq][zona].push(nombre);
     toast(nombre+' → '+ZONA_NAMES[zona]);
@@ -1657,6 +1638,7 @@ function startField(c,ev){
   drag={mode:'field',c,pof:c.parentElement,campo:c.parentElement.closest('.campo-wrap'),eq:c.dataset.eq,nombre:c.dataset.nombre};
   c.classList.add('dragging');
   c.parentElement.classList.add('no-anim');
+  document.getElementById('trash-zone').classList.add('visible');
   const r=c.getBoundingClientRect();
   dOff.x=ev.clientX-r.left-r.width/2; dOff.y=ev.clientY-r.top-r.height/2;
   on('touchmove',moveField,{passive:false}); on('touchend',endField);
@@ -1666,6 +1648,9 @@ function moveField(e){
   e.preventDefault&&e.preventDefault();
   if(!drag||drag.mode!=='field')return;
   const ev=e.touches?e.touches[0]:e;
+  const tr=document.getElementById('trash-zone').getBoundingClientRect();
+  const sobreTrash=ev.clientX>=tr.left&&ev.clientX<=tr.right&&ev.clientY>=tr.top&&ev.clientY<=tr.bottom;
+  document.getElementById('trash-zone').classList.toggle('over',sobreTrash);
   const cr=drag.campo.getBoundingClientRect();
   drag.pof.style.top  =clamp(((ev.clientY-dOff.y-cr.top   )/cr.height)*100,2,96)+'%';
   drag.pof.style.left =clamp(((ev.clientX-dOff.x-cr.left  )/cr.width )*100,2,97)+'%';
@@ -1678,9 +1663,18 @@ function endField(e){
   const ev=e.changedTouches?e.changedTouches[0]:e;
   const cr=drag.campo.getBoundingClientRect();
   const inside=ev.clientX>=cr.left&&ev.clientX<=cr.right&&ev.clientY>=cr.top&&ev.clientY<=cr.bottom;
-  if(!inside){
-    move(drag.eq,'campo',drag.eq,'disponibles',drag.nombre);
-    drag=null;render();return;
+  const tr=document.getElementById('trash-zone');
+  tr.classList.remove('visible','over');
+  const trR=tr.getBoundingClientRect();
+  const sobreTrash=ev.clientX>=trR.left&&ev.clientX<=trR.right&&ev.clientY>=trR.top&&ev.clientY<=trR.bottom;
+  if(sobreTrash||!inside){
+    // Borrar del campo
+    const arr=data[dia][drag.eq].campo;
+    const i=arr.indexOf(drag.nombre); if(i>=0) arr.splice(i,1);
+    borrarMultiEq(dia,drag.nombre,drag.eq);
+    drag.pof.remove();
+    autoGuardar(); updateCount(drag.eq);
+    drag=null; return;
   }
   // Snap al slot más cercano
   const rawTop =clamp(((ev.clientY-dOff.y-cr.top   )/cr.height)*100,2,96);
@@ -1689,6 +1683,7 @@ function endField(e){
   savePos(dia,drag.eq,drag.nombre,snapT,snapL);
   drag.pof.style.top  = snapT+'%';
   drag.pof.style.left = snapL+'%';
+  document.getElementById('trash-zone').classList.remove('visible','over');
   updateCount(drag.eq);
   autoGuardar();
   drag=null;
@@ -1697,6 +1692,7 @@ function endField(e){
 function startZone(c,ev){
   drag={mode:'zone',c,eq:c.dataset.eq,zona:c.dataset.zona,nombre:c.dataset.nombre};
   c.classList.add('dragging');
+  document.getElementById('trash-zone').classList.add('visible');
   const g=document.getElementById('ghost');
   g.className='chip '+c.className.replace(/cf|cz|dragging/g,'').trim();
   g.textContent=c.dataset.nombre; g.style.display='block';
@@ -1714,6 +1710,9 @@ function moveZone(e){
   document.querySelectorAll('.dz').forEach(z=>z.classList.remove('dz-active'));
   const t=document.elementFromPoint(ev.clientX,ev.clientY);
   if(t){const dz=t.closest('.dz');if(dz)dz.classList.add('dz-active');}
+  const tr=document.getElementById('trash-zone').getBoundingClientRect();
+  const sobreTrash=ev.clientX>=tr.left&&ev.clientX<=tr.right&&ev.clientY>=tr.top&&ev.clientY<=tr.bottom;
+  document.getElementById('trash-zone').classList.toggle('over',sobreTrash);
 }
 function endZone(e){
   off('touchmove',moveZone);off('touchend',endZone);off('mousemove',moveZone);off('mouseup',endZone);
@@ -1724,6 +1723,17 @@ function endZone(e){
   const ev=e.changedTouches?e.changedTouches[0]:e;
   const t=document.elementFromPoint(ev.clientX,ev.clientY);
   const dz=t&&t.closest('.dz');
+  document.getElementById('trash-zone').classList.remove('visible','over');
+  const trEl=document.getElementById('trash-zone');
+  const trR2=trEl.getBoundingClientRect();
+  const sobreTrash2=ev.clientX>=trR2.left&&ev.clientX<=trR2.right&&ev.clientY>=trR2.top&&ev.clientY<=trR2.bottom;
+  if(sobreTrash2){
+    const arr=data[dia][drag.eq][drag.zona];
+    const i=arr.indexOf(drag.nombre); if(i>=0) arr.splice(i,1);
+    borrarMultiEq(dia,drag.nombre,drag.eq);
+    toast('🗑️ '+drag.nombre+' eliminado');
+    drag=null; render(); return;
+  }
   if(!dz){drag=null;return;}
   const toEq=dz.dataset.eq, toZona=dz.dataset.zona;
   if(drag.eq===toEq&&drag.zona===toZona){drag=null;return;}
@@ -1743,54 +1753,11 @@ const ZONA_NAMES={campo:'Campo',banquillo:'Banquillo',disponibles:'Disponibles',
 function move(fromEq,fromZona,toEq,toZona,nombre){
   const arr=data[dia][fromEq][fromZona];
   const i=arr.indexOf(nombre); if(i===-1)return;
-
-  // ── Movimiento dentro del mismo equipo
-  if(fromEq === toEq){
-    arr.splice(i,1);
-    data[dia][toEq][toZona].push(nombre);
-    toast(nombre+' → '+ZONA_NAMES[toZona]);
-    return;
-  }
-
-  // ── Movimiento entre equipos distintos
-  const eqOrigen = origen[nombre];
-
-  // ¿Ya tiene presencia activa en otro equipo (distinto del origen del drag)?
-  const yaActivoEnOtro = EQUIPOS.some(e=> e!==fromEq && e!==toEq &&
-    ZONAS_ACTIVAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre))
-  );
-
-  arr.splice(i,1); // Quitar de zona origen
-
-  if(yaActivoEnOtro){
-    // Multi-equipo: añadir al destino y marcar rojo en todos
-    registrarMultiEq(dia, nombre, toEq);
-    registrarMultiEq(dia, nombre, fromEq);
-    data[dia][toEq][toZona].push(nombre);
-    toast('🔴 '+nombre+' en varios equipos hoy');
-    return;
-  }
-
-  // ¿Vuelve a su equipo de origen? → limpiar promoción
-  if(toEq === eqOrigen){
-    if(promInfo[dia]?.[toEq]?.[nombre]) delete promInfo[dia][toEq][nombre];
-    // Quitar de promovidos_1er del equipo origen si estaba ahí
-    const pArr = data[dia][toEq]?.promovidos_1er || [];
-    const pi = pArr.indexOf(nombre);
-    if(pi>=0) pArr.splice(pi,1);
-    borrarMultiEq(dia, nombre, fromEq);
-    data[dia][toEq][toZona].push(nombre);
-    toast(nombre+' → '+ZONA_NAMES[toZona]);
-    return;
-  }
-
-  // ¿Va a un equipo distinto al suyo? → auto-promoción
-  if(eqOrigen && eqOrigen !== toEq && eqOrigen !== 'PRUEBA'){
-    autoPromocionar(nombre, eqOrigen, toEq);
-  }
-
+  arr.splice(i,1);
   data[dia][toEq][toZona].push(nombre);
-  toast(nombre+' → '+ZONA_NAMES[toZona]);
+  // Si tiene borde rojo y ya solo está en un equipo, limpiar multi
+  borrarMultiEq(dia, nombre, fromEq);
+  toast(nombre+' → '+(fromEq!==toEq?toEq+' / ':'')+ZONA_NAMES[toZona]);
 }
 
 // ══════════════════════════════════════════════════
