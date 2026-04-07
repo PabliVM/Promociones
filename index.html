@@ -13,6 +13,84 @@
 <title>Campograma RM</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA19pehf2IkMWkXNH_jVjYQIdpsuN97hTE",
+  authDomain: "promociones-c76fd.firebaseapp.com",
+  projectId: "promociones-c76fd",
+  storageBucket: "promociones-c76fd.firebasestorage.app",
+  messagingSenderId: "518492143356",
+  appId: "1:518492143356:web:933781087206f4f95e6179",
+  measurementId: "G-2T8RXB8N0R"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+window._db = db;
+window._fbReady = true;
+window._firebase = { doc, getDoc, setDoc, deleteDoc, collection, getDocs, serverTimestamp };
+
+// Cargar plantillas desde Firebase al arrancar
+async function cargarPlantillasFirebase(){
+  try{
+    const snap = await getDoc(doc(db,'campograma','plantillas'));
+    if(snap.exists()){
+      const fbData = snap.data();
+      if(fbData.plantillas) window._fbPlantillas = fbData.plantillas;
+      if(fbData.origen)     window._fbOrigen     = fbData.origen;
+      console.log('✓ Plantillas Firebase cargadas');
+    }
+  }catch(e){ console.warn('Firebase plantillas error:',e); }
+}
+
+// Guardar sesión en Firebase
+window.fbGuardarSesion = async function(nombre, payload){
+  try{
+    const { doc:d, setDoc:s, serverTimestamp:ts } = window._firebase;
+    await s(d(window._db,'sesiones',nombre), {
+      ...payload,
+      _nombre: nombre,
+      _ts: ts()
+    });
+    return true;
+  }catch(e){ console.error('fbGuardarSesion error:',e); return false; }
+};
+
+// Cargar sesión desde Firebase
+window.fbCargarSesion = async function(nombre){
+  try{
+    const { doc:d, getDoc:g } = window._firebase;
+    const snap = await g(d(window._db,'sesiones',nombre));
+    return snap.exists() ? snap.data() : null;
+  }catch(e){ console.error('fbCargarSesion error:',e); return null; }
+};
+
+// Listar sesiones guardadas
+window.fbListarSesiones = async function(){
+  try{
+    const { collection:col, getDocs:gd } = window._firebase;
+    const snap = await gd(col(window._db,'sesiones'));
+    return snap.docs.map(d=>({id:d.id, ...d.data()}));
+  }catch(e){ console.error('fbListarSesiones error:',e); return []; }
+};
+
+// Eliminar sesión
+window.fbEliminarSesion = async function(nombre){
+  try{
+    const { doc:d, deleteDoc:del } = window._firebase;
+    await del(d(window._db,'sesiones',nombre));
+    return true;
+  }catch(e){ console.error('fbEliminarSesion error:',e); return false; }
+};
+
+// Cargar plantillas y señalizar app lista
+await cargarPlantillasFirebase();
+window.dispatchEvent(new Event('firebase-ready'));
+</script>
 <style>
 :root{
   --verde:#77ED85;--verde-dk:#003300;--verde-bd:#4ade80;
@@ -134,6 +212,22 @@ body{background:var(--rm-dark);font-family:'Barlow',sans-serif;min-height:100vh;
 #trash-zone.over{transform:scale(1.2);background:#b91c1c;}
 .ac-prueba-hint{padding:4px 9px 5px;font-size:9px;color:#94a3b8;border-top:1px dashed #e2e8f0;font-style:italic;}
 
+/* ── SESIONES FIREBASE ── */
+#fb-overlay{position:fixed;inset:0;z-index:10020;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;padding-top:60px;}
+#fb-overlay.open{display:flex;}
+#fb-box{background:#0f1729;border:1px solid rgba(200,168,0,.3);border-radius:14px;padding:18px;width:360px;max-width:94vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.7);}
+#fb-box h3{font-family:'Barlow Condensed',sans-serif;color:#C8A800;font-size:18px;margin:0 0 14px;letter-spacing:1px;}
+.fb-sesion-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.05);margin-bottom:6px;gap:8px;}
+.fb-sesion-nombre{font-family:'Barlow Condensed',sans-serif;color:#fff;font-size:14px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fb-sesion-ts{font-size:10px;color:rgba(255,255,255,.35);white-space:nowrap;}
+.fb-btn{padding:5px 12px;border-radius:7px;border:none;font-weight:700;font-size:12px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;}
+.fb-btn.cargar{background:#C8A800;color:#000;}
+.fb-btn.borrar{background:#ef4444;color:#fff;}
+#fb-nueva-row{display:flex;gap:8px;margin-top:14px;border-top:1px solid rgba(255,255,255,.1);padding-top:14px;}
+#fb-nueva-inp{flex:1;padding:8px 12px;border-radius:8px;border:1px solid rgba(200,168,0,.3);background:rgba(255,255,255,.05);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:14px;}
+#fb-nueva-inp::placeholder{color:rgba(255,255,255,.3);}
+.fb-empty{color:rgba(255,255,255,.3);font-size:13px;text-align:center;padding:20px 0;font-family:'Barlow Condensed',sans-serif;}
+
 /* ── CALENDARIO SEMANA ── */
 #cal-overlay{position:fixed;inset:0;z-index:10010;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding-top:60px;}
 #cal-overlay.open{display:flex;}
@@ -211,8 +305,11 @@ body{background:var(--rm-dark);font-family:'Barlow',sans-serif;min-height:100vh;
 .zona-disponibles.dz-active{background:#f0fdf4;outline:2px dashed var(--verde-bd);outline-offset:-2px;}
 
 /* ZONA BANQUILLO */
-.zona-banquillo{padding:7px 10px;background:#eff6ff;border-top:2px solid #bfdbfe;min-height:44px;}
-.zona-banquillo.dz-active{background:#dbeafe;outline:2px dashed var(--azul);outline-offset:-2px;}
+.zona-banquillo{padding:7px 10px;background:#1a1200;border-top:2px solid #f59e0b;min-height:44px;}
+.zona-banquillo.dz-active{background:#292200;outline:2px dashed #f59e0b;outline-offset:-2px;}
+.partido-banner{background:#f59e0b;color:#000;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;letter-spacing:2px;text-align:center;padding:3px 0;text-transform:uppercase;}
+.modo-btn{padding:2px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6);font-size:10px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;transition:all .2s;}
+.modo-btn.partido{background:#f59e0b;color:#000;border-color:#f59e0b;}
 
 /* COLUMNAS ESTADO */
 .cols-estado{display:grid;border-top:2px solid var(--border);}
@@ -242,7 +339,7 @@ body{background:var(--rm-dark);font-family:'Barlow',sans-serif;min-height:100vh;
 
 .zona-lbl{font-family:'Barlow Condensed',sans-serif;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
 .zona-disponibles .zona-lbl{color:#64748b;}
-.zona-banquillo   .zona-lbl{color:#2563eb;}
+.zona-banquillo   .zona-lbl{color:#f59e0b;}
 .col-prom .zona-lbl{color:var(--naranja);}
 .col-les  .zona-lbl{color:var(--rojo);}
 .col-otros .zona-lbl{color:#6b7280;}
@@ -369,6 +466,7 @@ body{background:var(--rm-dark);font-family:'Barlow',sans-serif;min-height:100vh;
 
 <div class="save-bar">
   <button class="save-btn" id="save-btn" onclick="guardarDia()">💾 Guardar</button>
+  <button class="save-btn" style="background:#1a3a6b;color:#fff;" onclick="abrirFbPanel()" title="Sesiones en la nube (Firebase)">☁️ Nube</button>
   <button class="save-btn" style="background:#1e3a8a;color:#fff;" onclick="exportarDatos()" title="Exportar todos los datos a un fichero JSON para guardar una copia de seguridad">📤 Exportar datos</button>
   <button class="save-btn" style="background:#1e3a8a;color:#fff;" onclick="importarDatos()" title="Cargar datos desde un fichero JSON exportado previamente">📥 Importar datos</button>
   <input type="file" id="import-file" accept=".json" style="display:none" onchange="cargarFicheroImport(event)">
@@ -378,6 +476,21 @@ body{background:var(--rm-dark);font-family:'Barlow',sans-serif;min-height:100vh;
 
 <!-- Papelera flotante -->
 <div id="trash-zone">🗑️</div>
+
+<!-- Panel sesiones Firebase -->
+<div id="fb-overlay">
+  <div id="fb-box">
+    <h3>☁️ SESIONES GUARDADAS</h3>
+    <div id="fb-lista"><div class="fb-empty">Cargando...</div></div>
+    <div id="fb-nueva-row">
+      <input id="fb-nueva-inp" type="text" placeholder="Nombre de la sesión (ej: Semana 12)">
+      <button class="fb-btn cargar" onclick="fbGuardarActual()">💾 Guardar</button>
+    </div>
+    <div style="margin-top:10px;display:flex;justify-content:flex-end;">
+      <button class="fb-btn" style="background:rgba(255,255,255,.1);color:#fff;" onclick="cerrarFbPanel()">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <!-- Calendario semana -->
 <div id="cal-overlay">
@@ -408,7 +521,7 @@ body{background:var(--rm-dark);font-family:'Barlow',sans-serif;min-height:100vh;
 // ══════════════════════════════════════════════════
 // DATOS
 // ══════════════════════════════════════════════════
-const RAW = {"LUNES": {"CASTILLA": {"campo": [], "disponibles": ["FRAN GONZÁLEZ", "SERGIO MESTRE", "GUILLE SÚNICO", "MARIO RIVAS", "MANU SERRANO", "CRISTIAN PEREA", "LAMINI FATI", "DAVID JIMÉNEZ", "VÍCTOR VALDEPEÑAS", "CÉSAR PALACIOS", "BRUNO IGLESIAS", "MANUEL ÁNGEL", "JORGE CESTERO", "JOAN MARTÍNEZ", "THIAGO PITARCH", "JESÚS FORTEA", "RACHAD FETAL", "POL FORTUNY", "DIEGO AGUADO", "HUGO DE LLANOS", "DANIEL YAÑEZ", "LORENZO ZÚÑIGA"], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": ["FERRAN QUETGLAS", "ALEJANDRO MOYA", "ALFREDO SOTRES", "JAIME CALLEJA", "CARLOS RGUEZ.", "IZAN REGUEIRA", "ÁLVARO GINÉS", "JOAN MASCARÓ", "JACOBO ORTEGA", "DANIEL MESONERO", "DIEGO ARROYO", "ALEJANDRO PÉREZ", "YERAY LANCHA", "ÓSCAR MESA", "ÁLVARO LEIVA", "AIMAR SANTIAGO", "ERIC GÓMEZ", "EMANUEL  SANTANA", "ROBERTO MARTÍN", "GABRIEL CASTRELO", "ÁLVARO GONZÁLEZ", "MANEX REZOLA", "ADRIÁN ARNUCIO"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": ["JAIME BARROSO", "POL DURÁN", "LIBERTO  NAV.", "JAVIER NAVARRO", "ILLIA VOLOSHYN", "DIEGO MTNEZ \"BETO\"", "JOSE A. REYES", "FERRAN SECO", "FCO. JAVIER BAILÓN", "ADRIÁN PÉREZ", "IGNACIO GASCÓN", "ÁLVARO LEZCANO", "CARLOS DÍEZ", "PAULO DE ALMEIDA", "ALEXIS CIRIA", "ALFONSO ROMERO", "MARCOS VIEGA", "ARIEL NKOGHE", "AARÓN GÓMEZ", "GABRIEL VALERO", "JOEL PLEGUEZUELOS", "MELVIN UKPEIGBE", "BRUNO GALASSI", "RUBÉN MARTÍNEZ", "JAVIER MENA", "GUILLE GONZÁLEZ", "IKER DOBLAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": ["DIEGO LACOSTA", "LUIS PAULO", "FERNANDO VEGA", "SANTIAGO DEL PINO", "YEREMAIAH RAMOS", "RODRIGO VELASCO", "ARES CAPATANA", "ENZO ALVES", "LÉO LEMAITRE", "MATEO GARRIDO", "MARCO COMPANY", "RAÚL ANDREI PERTEA", "BRYAN BUGARÍN", "GUILLERMO PONCE", "JUAN CASADO", "ANDRÉS  CORCOBA", "PELAYO PALOMO", "RUBÉN LÓPEZ", "ALEJANDRO MORA", "NICOLÁS SAN PÍO", "CARLOS LARDÍN", "JL ESPINOSA", "RAFAEL SALES"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": ["BELTRÁN CAPOTE", "ALEJANDRO CASTAÑO", "J. ALBERTO CASTELAU", "EDUARDO VALENTIN", "MATEO POZO", "MATIAS MARTIN", "HUGO SARMIENTO", "OMAR CHAOUI", "MARIO BULLÓN", "PABLO IBAÑEZ", "HÉCTOR MARTÍNEZ", "IZAN MESA", "ÁLVARO RIVERA", "GUILLERMO DIAZ", "JESÚS PALACIOS", "RUBEN DÍAZ", "GUILLERMO LÓPEZ", "JENRY HERNANDEZ", "PABLO MARTINEZ", "DIEGO SANCHEZ", "MANUEL ROMERO", "MOCTAR CHERIF", "NILS LEON WESTIN", "JAIRO MORILLA", "VÍCTOR RIVAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "banquillo": [], "disponibles": ["IKER DIEPA", "HUGO MEDINA", "UNAI ORDOÑEZ", "JOEL PALLÉ", "FERNANDO PEREIRA", "ADRIÁN TALAVERA", "IGNACIO ALAMEDA", "ALVARO BARRAL", "MARTIN ESPUELA", "AITOR GANDIA", "DAVID KRAVETS", "ADRIÁN MORALES", "VICTOR  PLAZAS", "CARLOS SÁNCHEZ", "ASIER SANCHEZ", "ASIER SANTOYO", "ALVARO VEGA", "DANIEL GONZÁLEZ", "HÉCTOR MONTERO", "IZAN RAMIREZ", "HUGO TORRESANO", "IVÁN VÁZQUEZ", "GORKA ABASCAL", "AITOR TORONDEL", "HUGO MORENO"], "promovidos_1er": [], "lesionados": [], "otros": []}}, "MARTES": {"CASTILLA": {"campo": [], "disponibles": ["FRAN GONZÁLEZ", "SERGIO MESTRE", "GUILLE SÚNICO", "MARIO RIVAS", "MANU SERRANO", "CRISTIAN PEREA", "LAMINI FATI", "DAVID JIMÉNEZ", "VÍCTOR VALDEPEÑAS", "CÉSAR PALACIOS", "BRUNO IGLESIAS", "MANUEL ÁNGEL", "JORGE CESTERO", "JOAN MARTÍNEZ", "THIAGO PITARCH", "JESÚS FORTEA", "RACHAD FETAL", "POL FORTUNY", "DIEGO AGUADO", "HUGO DE LLANOS", "DANIEL YAÑEZ", "LORENZO ZÚÑIGA"], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": ["FERRAN QUETGLAS", "ALEJANDRO MOYA", "ALFREDO SOTRES", "JAIME CALLEJA", "CARLOS RGUEZ.", "IZAN REGUEIRA", "ÁLVARO GINÉS", "JOAN MASCARÓ", "JACOBO ORTEGA", "DANIEL MESONERO", "DIEGO ARROYO", "ALEJANDRO PÉREZ", "YERAY LANCHA", "ÓSCAR MESA", "ÁLVARO LEIVA", "AIMAR SANTIAGO", "ERIC GÓMEZ", "EMANUEL  SANTANA", "ROBERTO MARTÍN", "GABRIEL CASTRELO", "ÁLVARO GONZÁLEZ", "MANEX REZOLA", "ADRIÁN ARNUCIO"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": ["JAIME BARROSO", "POL DURÁN", "LIBERTO  NAV.", "JAVIER NAVARRO", "ILLIA VOLOSHYN", "DIEGO MTNEZ \"BETO\"", "JOSE A. REYES", "FERRAN SECO", "FCO. JAVIER BAILÓN", "ADRIÁN PÉREZ", "IGNACIO GASCÓN", "ÁLVARO LEZCANO", "CARLOS DÍEZ", "PAULO DE ALMEIDA", "ALEXIS CIRIA", "ALFONSO ROMERO", "MARCOS VIEGA", "ARIEL NKOGHE", "AARÓN GÓMEZ", "GABRIEL VALERO", "JOEL PLEGUEZUELOS", "MELVIN UKPEIGBE", "BRUNO GALASSI", "RUBÉN MARTÍNEZ", "JAVIER MENA", "GUILLE GONZÁLEZ", "IKER DOBLAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": ["DIEGO LACOSTA", "LUIS PAULO", "FERNANDO VEGA", "SANTIAGO DEL PINO", "YEREMAIAH RAMOS", "RODRIGO VELASCO", "ARES CAPATANA", "ENZO ALVES", "LÉO LEMAITRE", "MATEO GARRIDO", "MARCO COMPANY", "RAÚL ANDREI PERTEA", "BRYAN BUGARÍN", "GUILLERMO PONCE", "JUAN CASADO", "ANDRÉS  CORCOBA", "PELAYO PALOMO", "RUBÉN LÓPEZ", "ALEJANDRO MORA", "NICOLÁS SAN PÍO", "CARLOS LARDÍN", "JL ESPINOSA", "RAFAEL SALES"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": ["BELTRÁN CAPOTE", "ALEJANDRO CASTAÑO", "J. ALBERTO CASTELAU", "EDUARDO VALENTIN", "MATEO POZO", "MATIAS MARTIN", "HUGO SARMIENTO", "OMAR CHAOUI", "MARIO BULLÓN", "PABLO IBAÑEZ", "HÉCTOR MARTÍNEZ", "IZAN MESA", "ÁLVARO RIVERA", "GUILLERMO DIAZ", "JESÚS PALACIOS", "RUBEN DÍAZ", "GUILLERMO LÓPEZ", "JENRY HERNANDEZ", "PABLO MARTINEZ", "DIEGO SANCHEZ", "MANUEL ROMERO", "MOCTAR CHERIF", "NILS LEON WESTIN", "JAIRO MORILLA", "VÍCTOR RIVAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "banquillo": [], "disponibles": ["IKER DIEPA", "HUGO MEDINA", "UNAI ORDOÑEZ", "JOEL PALLÉ", "FERNANDO PEREIRA", "ADRIÁN TALAVERA", "IGNACIO ALAMEDA", "ALVARO BARRAL", "MARTIN ESPUELA", "AITOR GANDIA", "DAVID KRAVETS", "ADRIÁN MORALES", "VICTOR  PLAZAS", "CARLOS SÁNCHEZ", "ASIER SANCHEZ", "ASIER SANTOYO", "ALVARO VEGA", "DANIEL GONZÁLEZ", "HÉCTOR MONTERO", "IZAN RAMIREZ", "HUGO TORRESANO", "IVÁN VÁZQUEZ", "GORKA ABASCAL", "AITOR TORONDEL", "HUGO MORENO"], "promovidos_1er": [], "lesionados": [], "otros": []}}, "MIÉRCOLES": {"CASTILLA": {"campo": [], "disponibles": ["FRAN GONZÁLEZ", "SERGIO MESTRE", "GUILLE SÚNICO", "MARIO RIVAS", "MANU SERRANO", "CRISTIAN PEREA", "LAMINI FATI", "DAVID JIMÉNEZ", "VÍCTOR VALDEPEÑAS", "CÉSAR PALACIOS", "BRUNO IGLESIAS", "MANUEL ÁNGEL", "JORGE CESTERO", "JOAN MARTÍNEZ", "THIAGO PITARCH", "JESÚS FORTEA", "RACHAD FETAL", "POL FORTUNY", "DIEGO AGUADO", "HUGO DE LLANOS", "DANIEL YAÑEZ", "LORENZO ZÚÑIGA"], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": ["FERRAN QUETGLAS", "ALEJANDRO MOYA", "ALFREDO SOTRES", "JAIME CALLEJA", "CARLOS RGUEZ.", "IZAN REGUEIRA", "ÁLVARO GINÉS", "JOAN MASCARÓ", "JACOBO ORTEGA", "DANIEL MESONERO", "DIEGO ARROYO", "ALEJANDRO PÉREZ", "YERAY LANCHA", "ÓSCAR MESA", "ÁLVARO LEIVA", "AIMAR SANTIAGO", "ERIC GÓMEZ", "EMANUEL  SANTANA", "ROBERTO MARTÍN", "GABRIEL CASTRELO", "ÁLVARO GONZÁLEZ", "MANEX REZOLA", "ADRIÁN ARNUCIO"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": ["JAIME BARROSO", "POL DURÁN", "LIBERTO  NAV.", "JAVIER NAVARRO", "ILLIA VOLOSHYN", "DIEGO MTNEZ \"BETO\"", "JOSE A. REYES", "FERRAN SECO", "FCO. JAVIER BAILÓN", "ADRIÁN PÉREZ", "IGNACIO GASCÓN", "ÁLVARO LEZCANO", "CARLOS DÍEZ", "PAULO DE ALMEIDA", "ALEXIS CIRIA", "ALFONSO ROMERO", "MARCOS VIEGA", "ARIEL NKOGHE", "AARÓN GÓMEZ", "GABRIEL VALERO", "JOEL PLEGUEZUELOS", "MELVIN UKPEIGBE", "BRUNO GALASSI", "RUBÉN MARTÍNEZ", "JAVIER MENA", "GUILLE GONZÁLEZ", "IKER DOBLAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": ["DIEGO LACOSTA", "LUIS PAULO", "FERNANDO VEGA", "SANTIAGO DEL PINO", "YEREMAIAH RAMOS", "RODRIGO VELASCO", "ARES CAPATANA", "ENZO ALVES", "LÉO LEMAITRE", "MATEO GARRIDO", "MARCO COMPANY", "RAÚL ANDREI PERTEA", "BRYAN BUGARÍN", "GUILLERMO PONCE", "JUAN CASADO", "ANDRÉS  CORCOBA", "PELAYO PALOMO", "RUBÉN LÓPEZ", "ALEJANDRO MORA", "NICOLÁS SAN PÍO", "CARLOS LARDÍN", "JL ESPINOSA", "RAFAEL SALES"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": ["BELTRÁN CAPOTE", "ALEJANDRO CASTAÑO", "J. ALBERTO CASTELAU", "EDUARDO VALENTIN", "MATEO POZO", "MATIAS MARTIN", "HUGO SARMIENTO", "OMAR CHAOUI", "MARIO BULLÓN", "PABLO IBAÑEZ", "HÉCTOR MARTÍNEZ", "IZAN MESA", "ÁLVARO RIVERA", "GUILLERMO DIAZ", "JESÚS PALACIOS", "RUBEN DÍAZ", "GUILLERMO LÓPEZ", "JENRY HERNANDEZ", "PABLO MARTINEZ", "DIEGO SANCHEZ", "MANUEL ROMERO", "MOCTAR CHERIF", "NILS LEON WESTIN", "JAIRO MORILLA", "VÍCTOR RIVAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "banquillo": [], "disponibles": ["IKER DIEPA", "HUGO MEDINA", "UNAI ORDOÑEZ", "JOEL PALLÉ", "FERNANDO PEREIRA", "ADRIÁN TALAVERA", "IGNACIO ALAMEDA", "ALVARO BARRAL", "MARTIN ESPUELA", "AITOR GANDIA", "DAVID KRAVETS", "ADRIÁN MORALES", "VICTOR  PLAZAS", "CARLOS SÁNCHEZ", "ASIER SANCHEZ", "ASIER SANTOYO", "ALVARO VEGA", "DANIEL GONZÁLEZ", "HÉCTOR MONTERO", "IZAN RAMIREZ", "HUGO TORRESANO", "IVÁN VÁZQUEZ", "GORKA ABASCAL", "AITOR TORONDEL", "HUGO MORENO"], "promovidos_1er": [], "lesionados": [], "otros": []}}, "JUEVES": {"CASTILLA": {"campo": [], "disponibles": ["FRAN GONZÁLEZ", "SERGIO MESTRE", "GUILLE SÚNICO", "MARIO RIVAS", "MANU SERRANO", "CRISTIAN PEREA", "LAMINI FATI", "DAVID JIMÉNEZ", "VÍCTOR VALDEPEÑAS", "CÉSAR PALACIOS", "BRUNO IGLESIAS", "MANUEL ÁNGEL", "JORGE CESTERO", "JOAN MARTÍNEZ", "THIAGO PITARCH", "JESÚS FORTEA", "RACHAD FETAL", "POL FORTUNY", "DIEGO AGUADO", "HUGO DE LLANOS", "DANIEL YAÑEZ", "LORENZO ZÚÑIGA"], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": ["FERRAN QUETGLAS", "ALEJANDRO MOYA", "ALFREDO SOTRES", "JAIME CALLEJA", "CARLOS RGUEZ.", "IZAN REGUEIRA", "ÁLVARO GINÉS", "JOAN MASCARÓ", "JACOBO ORTEGA", "DANIEL MESONERO", "DIEGO ARROYO", "ALEJANDRO PÉREZ", "YERAY LANCHA", "ÓSCAR MESA", "ÁLVARO LEIVA", "AIMAR SANTIAGO", "ERIC GÓMEZ", "EMANUEL  SANTANA", "ROBERTO MARTÍN", "GABRIEL CASTRELO", "ÁLVARO GONZÁLEZ", "MANEX REZOLA", "ADRIÁN ARNUCIO"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": ["JAIME BARROSO", "POL DURÁN", "LIBERTO  NAV.", "JAVIER NAVARRO", "ILLIA VOLOSHYN", "DIEGO MTNEZ \"BETO\"", "JOSE A. REYES", "FERRAN SECO", "FCO. JAVIER BAILÓN", "ADRIÁN PÉREZ", "IGNACIO GASCÓN", "ÁLVARO LEZCANO", "CARLOS DÍEZ", "PAULO DE ALMEIDA", "ALEXIS CIRIA", "ALFONSO ROMERO", "MARCOS VIEGA", "ARIEL NKOGHE", "AARÓN GÓMEZ", "GABRIEL VALERO", "JOEL PLEGUEZUELOS", "MELVIN UKPEIGBE", "BRUNO GALASSI", "RUBÉN MARTÍNEZ", "JAVIER MENA", "GUILLE GONZÁLEZ", "IKER DOBLAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": ["DIEGO LACOSTA", "LUIS PAULO", "FERNANDO VEGA", "SANTIAGO DEL PINO", "YEREMAIAH RAMOS", "RODRIGO VELASCO", "ARES CAPATANA", "ENZO ALVES", "LÉO LEMAITRE", "MATEO GARRIDO", "MARCO COMPANY", "RAÚL ANDREI PERTEA", "BRYAN BUGARÍN", "GUILLERMO PONCE", "JUAN CASADO", "ANDRÉS  CORCOBA", "PELAYO PALOMO", "RUBÉN LÓPEZ", "ALEJANDRO MORA", "NICOLÁS SAN PÍO", "CARLOS LARDÍN", "JL ESPINOSA", "RAFAEL SALES"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": ["BELTRÁN CAPOTE", "ALEJANDRO CASTAÑO", "J. ALBERTO CASTELAU", "EDUARDO VALENTIN", "MATEO POZO", "MATIAS MARTIN", "HUGO SARMIENTO", "OMAR CHAOUI", "MARIO BULLÓN", "PABLO IBAÑEZ", "HÉCTOR MARTÍNEZ", "IZAN MESA", "ÁLVARO RIVERA", "GUILLERMO DIAZ", "JESÚS PALACIOS", "RUBEN DÍAZ", "GUILLERMO LÓPEZ", "JENRY HERNANDEZ", "PABLO MARTINEZ", "DIEGO SANCHEZ", "MANUEL ROMERO", "MOCTAR CHERIF", "NILS LEON WESTIN", "JAIRO MORILLA", "VÍCTOR RIVAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "banquillo": [], "disponibles": ["IKER DIEPA", "HUGO MEDINA", "UNAI ORDOÑEZ", "JOEL PALLÉ", "FERNANDO PEREIRA", "ADRIÁN TALAVERA", "IGNACIO ALAMEDA", "ALVARO BARRAL", "MARTIN ESPUELA", "AITOR GANDIA", "DAVID KRAVETS", "ADRIÁN MORALES", "VICTOR  PLAZAS", "CARLOS SÁNCHEZ", "ASIER SANCHEZ", "ASIER SANTOYO", "ALVARO VEGA", "DANIEL GONZÁLEZ", "HÉCTOR MONTERO", "IZAN RAMIREZ", "HUGO TORRESANO", "IVÁN VÁZQUEZ", "GORKA ABASCAL", "AITOR TORONDEL", "HUGO MORENO"], "promovidos_1er": [], "lesionados": [], "otros": []}}, "VIERNES": {"CASTILLA": {"campo": [], "disponibles": ["FRAN GONZÁLEZ", "SERGIO MESTRE", "GUILLE SÚNICO", "MARIO RIVAS", "MANU SERRANO", "CRISTIAN PEREA", "LAMINI FATI", "DAVID JIMÉNEZ", "VÍCTOR VALDEPEÑAS", "CÉSAR PALACIOS", "BRUNO IGLESIAS", "MANUEL ÁNGEL", "JORGE CESTERO", "JOAN MARTÍNEZ", "THIAGO PITARCH", "JESÚS FORTEA", "RACHAD FETAL", "POL FORTUNY", "DIEGO AGUADO", "HUGO DE LLANOS", "DANIEL YAÑEZ", "LORENZO ZÚÑIGA"], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": ["FERRAN QUETGLAS", "ALEJANDRO MOYA", "ALFREDO SOTRES", "JAIME CALLEJA", "CARLOS RGUEZ.", "IZAN REGUEIRA", "ÁLVARO GINÉS", "JOAN MASCARÓ", "JACOBO ORTEGA", "DANIEL MESONERO", "DIEGO ARROYO", "ALEJANDRO PÉREZ", "YERAY LANCHA", "ÓSCAR MESA", "ÁLVARO LEIVA", "AIMAR SANTIAGO", "ERIC GÓMEZ", "EMANUEL  SANTANA", "ROBERTO MARTÍN", "GABRIEL CASTRELO", "ÁLVARO GONZÁLEZ", "MANEX REZOLA", "ADRIÁN ARNUCIO"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": ["JAIME BARROSO", "POL DURÁN", "LIBERTO  NAV.", "JAVIER NAVARRO", "ILLIA VOLOSHYN", "DIEGO MTNEZ \"BETO\"", "JOSE A. REYES", "FERRAN SECO", "FCO. JAVIER BAILÓN", "ADRIÁN PÉREZ", "IGNACIO GASCÓN", "ÁLVARO LEZCANO", "CARLOS DÍEZ", "PAULO DE ALMEIDA", "ALEXIS CIRIA", "ALFONSO ROMERO", "MARCOS VIEGA", "ARIEL NKOGHE", "AARÓN GÓMEZ", "GABRIEL VALERO", "JOEL PLEGUEZUELOS", "MELVIN UKPEIGBE", "BRUNO GALASSI", "RUBÉN MARTÍNEZ", "JAVIER MENA", "GUILLE GONZÁLEZ", "IKER DOBLAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": ["DIEGO LACOSTA", "LUIS PAULO", "FERNANDO VEGA", "SANTIAGO DEL PINO", "YEREMAIAH RAMOS", "RODRIGO VELASCO", "ARES CAPATANA", "ENZO ALVES", "LÉO LEMAITRE", "MATEO GARRIDO", "MARCO COMPANY", "RAÚL ANDREI PERTEA", "BRYAN BUGARÍN", "GUILLERMO PONCE", "JUAN CASADO", "ANDRÉS  CORCOBA", "PELAYO PALOMO", "RUBÉN LÓPEZ", "ALEJANDRO MORA", "NICOLÁS SAN PÍO", "CARLOS LARDÍN", "JL ESPINOSA", "RAFAEL SALES"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": ["BELTRÁN CAPOTE", "ALEJANDRO CASTAÑO", "J. ALBERTO CASTELAU", "EDUARDO VALENTIN", "MATEO POZO", "MATIAS MARTIN", "HUGO SARMIENTO", "OMAR CHAOUI", "MARIO BULLÓN", "PABLO IBAÑEZ", "HÉCTOR MARTÍNEZ", "IZAN MESA", "ÁLVARO RIVERA", "GUILLERMO DIAZ", "JESÚS PALACIOS", "RUBEN DÍAZ", "GUILLERMO LÓPEZ", "JENRY HERNANDEZ", "PABLO MARTINEZ", "DIEGO SANCHEZ", "MANUEL ROMERO", "MOCTAR CHERIF", "NILS LEON WESTIN", "JAIRO MORILLA", "VÍCTOR RIVAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "banquillo": [], "disponibles": ["IKER DIEPA", "HUGO MEDINA", "UNAI ORDOÑEZ", "JOEL PALLÉ", "FERNANDO PEREIRA", "ADRIÁN TALAVERA", "IGNACIO ALAMEDA", "ALVARO BARRAL", "MARTIN ESPUELA", "AITOR GANDIA", "DAVID KRAVETS", "ADRIÁN MORALES", "VICTOR  PLAZAS", "CARLOS SÁNCHEZ", "ASIER SANCHEZ", "ASIER SANTOYO", "ALVARO VEGA", "DANIEL GONZÁLEZ", "HÉCTOR MONTERO", "IZAN RAMIREZ", "HUGO TORRESANO", "IVÁN VÁZQUEZ", "GORKA ABASCAL", "AITOR TORONDEL", "HUGO MORENO"], "promovidos_1er": [], "lesionados": [], "otros": []}}, "SÁBADO": {"CASTILLA": {"campo": [], "disponibles": ["FRAN GONZÁLEZ", "SERGIO MESTRE", "GUILLE SÚNICO", "MARIO RIVAS", "MANU SERRANO", "CRISTIAN PEREA", "LAMINI FATI", "DAVID JIMÉNEZ", "VÍCTOR VALDEPEÑAS", "CÉSAR PALACIOS", "BRUNO IGLESIAS", "MANUEL ÁNGEL", "JORGE CESTERO", "JOAN MARTÍNEZ", "THIAGO PITARCH", "JESÚS FORTEA", "RACHAD FETAL", "POL FORTUNY", "DIEGO AGUADO", "HUGO DE LLANOS", "DANIEL YAÑEZ", "LORENZO ZÚÑIGA"], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": ["FERRAN QUETGLAS", "ALEJANDRO MOYA", "ALFREDO SOTRES", "JAIME CALLEJA", "CARLOS RGUEZ.", "IZAN REGUEIRA", "ÁLVARO GINÉS", "JOAN MASCARÓ", "JACOBO ORTEGA", "DANIEL MESONERO", "DIEGO ARROYO", "ALEJANDRO PÉREZ", "YERAY LANCHA", "ÓSCAR MESA", "ÁLVARO LEIVA", "AIMAR SANTIAGO", "ERIC GÓMEZ", "EMANUEL  SANTANA", "ROBERTO MARTÍN", "GABRIEL CASTRELO", "ÁLVARO GONZÁLEZ", "MANEX REZOLA", "ADRIÁN ARNUCIO"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": ["JAIME BARROSO", "POL DURÁN", "LIBERTO  NAV.", "JAVIER NAVARRO", "ILLIA VOLOSHYN", "DIEGO MTNEZ \"BETO\"", "JOSE A. REYES", "FERRAN SECO", "FCO. JAVIER BAILÓN", "ADRIÁN PÉREZ", "IGNACIO GASCÓN", "ÁLVARO LEZCANO", "CARLOS DÍEZ", "PAULO DE ALMEIDA", "ALEXIS CIRIA", "ALFONSO ROMERO", "MARCOS VIEGA", "ARIEL NKOGHE", "AARÓN GÓMEZ", "GABRIEL VALERO", "JOEL PLEGUEZUELOS", "MELVIN UKPEIGBE", "BRUNO GALASSI", "RUBÉN MARTÍNEZ", "JAVIER MENA", "GUILLE GONZÁLEZ", "IKER DOBLAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": ["DIEGO LACOSTA", "LUIS PAULO", "FERNANDO VEGA", "SANTIAGO DEL PINO", "YEREMAIAH RAMOS", "RODRIGO VELASCO", "ARES CAPATANA", "ENZO ALVES", "LÉO LEMAITRE", "MATEO GARRIDO", "MARCO COMPANY", "RAÚL ANDREI PERTEA", "BRYAN BUGARÍN", "GUILLERMO PONCE", "JUAN CASADO", "ANDRÉS  CORCOBA", "PELAYO PALOMO", "RUBÉN LÓPEZ", "ALEJANDRO MORA", "NICOLÁS SAN PÍO", "CARLOS LARDÍN", "JL ESPINOSA", "RAFAEL SALES"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": ["BELTRÁN CAPOTE", "ALEJANDRO CASTAÑO", "J. ALBERTO CASTELAU", "EDUARDO VALENTIN", "MATEO POZO", "MATIAS MARTIN", "HUGO SARMIENTO", "OMAR CHAOUI", "MARIO BULLÓN", "PABLO IBAÑEZ", "HÉCTOR MARTÍNEZ", "IZAN MESA", "ÁLVARO RIVERA", "GUILLERMO DIAZ", "JESÚS PALACIOS", "RUBEN DÍAZ", "GUILLERMO LÓPEZ", "JENRY HERNANDEZ", "PABLO MARTINEZ", "DIEGO SANCHEZ", "MANUEL ROMERO", "MOCTAR CHERIF", "NILS LEON WESTIN", "JAIRO MORILLA", "VÍCTOR RIVAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "banquillo": [], "disponibles": ["IKER DIEPA", "HUGO MEDINA", "UNAI ORDOÑEZ", "JOEL PALLÉ", "FERNANDO PEREIRA", "ADRIÁN TALAVERA", "IGNACIO ALAMEDA", "ALVARO BARRAL", "MARTIN ESPUELA", "AITOR GANDIA", "DAVID KRAVETS", "ADRIÁN MORALES", "VICTOR  PLAZAS", "CARLOS SÁNCHEZ", "ASIER SANCHEZ", "ASIER SANTOYO", "ALVARO VEGA", "DANIEL GONZÁLEZ", "HÉCTOR MONTERO", "IZAN RAMIREZ", "HUGO TORRESANO", "IVÁN VÁZQUEZ", "GORKA ABASCAL", "AITOR TORONDEL", "HUGO MORENO"], "promovidos_1er": [], "lesionados": [], "otros": []}}, "DOMINGO": {"CASTILLA": {"campo": [], "disponibles": ["FRAN GONZÁLEZ", "SERGIO MESTRE", "GUILLE SÚNICO", "MARIO RIVAS", "MANU SERRANO", "CRISTIAN PEREA", "LAMINI FATI", "DAVID JIMÉNEZ", "VÍCTOR VALDEPEÑAS", "CÉSAR PALACIOS", "BRUNO IGLESIAS", "MANUEL ÁNGEL", "JORGE CESTERO", "JOAN MARTÍNEZ", "THIAGO PITARCH", "JESÚS FORTEA", "RACHAD FETAL", "POL FORTUNY", "DIEGO AGUADO", "HUGO DE LLANOS", "DANIEL YAÑEZ", "LORENZO ZÚÑIGA"], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": ["FERRAN QUETGLAS", "ALEJANDRO MOYA", "ALFREDO SOTRES", "JAIME CALLEJA", "CARLOS RGUEZ.", "IZAN REGUEIRA", "ÁLVARO GINÉS", "JOAN MASCARÓ", "JACOBO ORTEGA", "DANIEL MESONERO", "DIEGO ARROYO", "ALEJANDRO PÉREZ", "YERAY LANCHA", "ÓSCAR MESA", "ÁLVARO LEIVA", "AIMAR SANTIAGO", "ERIC GÓMEZ", "EMANUEL  SANTANA", "ROBERTO MARTÍN", "GABRIEL CASTRELO", "ÁLVARO GONZÁLEZ", "MANEX REZOLA", "ADRIÁN ARNUCIO"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": ["JAIME BARROSO", "POL DURÁN", "LIBERTO  NAV.", "JAVIER NAVARRO", "ILLIA VOLOSHYN", "DIEGO MTNEZ \"BETO\"", "JOSE A. REYES", "FERRAN SECO", "FCO. JAVIER BAILÓN", "ADRIÁN PÉREZ", "IGNACIO GASCÓN", "ÁLVARO LEZCANO", "CARLOS DÍEZ", "PAULO DE ALMEIDA", "ALEXIS CIRIA", "ALFONSO ROMERO", "MARCOS VIEGA", "ARIEL NKOGHE", "AARÓN GÓMEZ", "GABRIEL VALERO", "JOEL PLEGUEZUELOS", "MELVIN UKPEIGBE", "BRUNO GALASSI", "RUBÉN MARTÍNEZ", "JAVIER MENA", "GUILLE GONZÁLEZ", "IKER DOBLAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": ["DIEGO LACOSTA", "LUIS PAULO", "FERNANDO VEGA", "SANTIAGO DEL PINO", "YEREMAIAH RAMOS", "RODRIGO VELASCO", "ARES CAPATANA", "ENZO ALVES", "LÉO LEMAITRE", "MATEO GARRIDO", "MARCO COMPANY", "RAÚL ANDREI PERTEA", "BRYAN BUGARÍN", "GUILLERMO PONCE", "JUAN CASADO", "ANDRÉS  CORCOBA", "PELAYO PALOMO", "RUBÉN LÓPEZ", "ALEJANDRO MORA", "NICOLÁS SAN PÍO", "CARLOS LARDÍN", "JL ESPINOSA", "RAFAEL SALES"], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": ["BELTRÁN CAPOTE", "ALEJANDRO CASTAÑO", "J. ALBERTO CASTELAU", "EDUARDO VALENTIN", "MATEO POZO", "MATIAS MARTIN", "HUGO SARMIENTO", "OMAR CHAOUI", "MARIO BULLÓN", "PABLO IBAÑEZ", "HÉCTOR MARTÍNEZ", "IZAN MESA", "ÁLVARO RIVERA", "GUILLERMO DIAZ", "JESÚS PALACIOS", "RUBEN DÍAZ", "GUILLERMO LÓPEZ", "JENRY HERNANDEZ", "PABLO MARTINEZ", "DIEGO SANCHEZ", "MANUEL ROMERO", "MOCTAR CHERIF", "NILS LEON WESTIN", "JAIRO MORILLA", "VÍCTOR RIVAS"], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "banquillo": [], "disponibles": ["IKER DIEPA", "HUGO MEDINA", "UNAI ORDOÑEZ", "JOEL PALLÉ", "FERNANDO PEREIRA", "ADRIÁN TALAVERA", "IGNACIO ALAMEDA", "ALVARO BARRAL", "MARTIN ESPUELA", "AITOR GANDIA", "DAVID KRAVETS", "ADRIÁN MORALES", "VICTOR  PLAZAS", "CARLOS SÁNCHEZ", "ASIER SANCHEZ", "ASIER SANTOYO", "ALVARO VEGA", "DANIEL GONZÁLEZ", "HÉCTOR MONTERO", "IZAN RAMIREZ", "HUGO TORRESANO", "IVÁN VÁZQUEZ", "GORKA ABASCAL", "AITOR TORONDEL", "HUGO MORENO"], "promovidos_1er": [], "lesionados": [], "otros": []}}};
+const RAW = {"LUNES": {"CASTILLA": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": [], "banquillo": []}}, "MARTES": {"CASTILLA": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": [], "banquillo": []}}, "MIÉRCOLES": {"CASTILLA": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": [], "banquillo": []}}, "JUEVES": {"CASTILLA": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": [], "banquillo": []}}, "VIERNES": {"CASTILLA": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": [], "banquillo": []}}, "SÁBADO": {"CASTILLA": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": [], "banquillo": []}}, "DOMINGO": {"CASTILLA": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "RMC": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL B": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "JUVENIL C": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": []}, "CADETE A": {"campo": [], "disponibles": [], "promovidos_1er": [], "lesionados": [], "otros": [], "banquillo": []}}};
 
 const DIAS    = ["LUNES","MARTES","MIÉRCOLES","JUEVES","VIERNES","SÁBADO","DOMINGO"];
 // Calcular fechas de la semana actual (lunes = día 0)
@@ -454,7 +567,7 @@ const POS_DEF = SNAP_SLOTS;
 // Líneas para referencia visual (sin uso de formación)
 const LINEAS_FORMACION = FILAS.map(t => [t, COLS]);
 
-const origen = {"FRAN GONZÁLEZ": "CASTILLA", "SERGIO MESTRE": "CASTILLA", "GUILLE SÚNICO": "CASTILLA", "MARIO RIVAS": "CASTILLA", "MANU SERRANO": "CASTILLA", "CRISTIAN PEREA": "CASTILLA", "LAMINI FATI": "CASTILLA", "DAVID JIMÉNEZ": "CASTILLA", "VÍCTOR VALDEPEÑAS": "CASTILLA", "CÉSAR PALACIOS": "CASTILLA", "BRUNO IGLESIAS": "CASTILLA", "MANUEL ÁNGEL": "CASTILLA", "JORGE CESTERO": "CASTILLA", "JOAN MARTÍNEZ": "CASTILLA", "THIAGO PITARCH": "CASTILLA", "JESÚS FORTEA": "CASTILLA", "RACHAD FETAL": "CASTILLA", "POL FORTUNY": "CASTILLA", "DIEGO AGUADO": "CASTILLA", "HUGO DE LLANOS": "CASTILLA", "DANIEL YAÑEZ": "CASTILLA", "LORENZO ZÚÑIGA": "CASTILLA", "FERRAN QUETGLAS": "RMC", "ALEJANDRO MOYA": "RMC", "ALFREDO SOTRES": "RMC", "JAIME CALLEJA": "RMC", "CARLOS RGUEZ.": "RMC", "IZAN REGUEIRA": "RMC", "ÁLVARO GINÉS": "RMC", "JOAN MASCARÓ": "RMC", "JACOBO ORTEGA": "RMC", "DANIEL MESONERO": "RMC", "DIEGO ARROYO": "RMC", "ALEJANDRO PÉREZ": "RMC", "YERAY LANCHA": "RMC", "ÓSCAR MESA": "RMC", "ÁLVARO LEIVA": "RMC", "AIMAR SANTIAGO": "RMC", "ERIC GÓMEZ": "RMC", "EMANUEL  SANTANA": "RMC", "ROBERTO MARTÍN": "RMC", "GABRIEL CASTRELO": "RMC", "ÁLVARO GONZÁLEZ": "RMC", "MANEX REZOLA": "RMC", "ADRIÁN ARNUCIO": "RMC", "JAIME BARROSO": "JUVENIL A", "POL DURÁN": "JUVENIL A", "LIBERTO  NAV.": "JUVENIL A", "JAVIER NAVARRO": "JUVENIL A", "ILLIA VOLOSHYN": "JUVENIL A", "DIEGO MTNEZ \"BETO\"": "JUVENIL A", "JOSE A. REYES": "JUVENIL A", "FERRAN SECO": "JUVENIL A", "FCO. JAVIER BAILÓN": "JUVENIL A", "ADRIÁN PÉREZ": "JUVENIL A", "IGNACIO GASCÓN": "JUVENIL A", "ÁLVARO LEZCANO": "JUVENIL A", "CARLOS DÍEZ": "JUVENIL A", "PAULO DE ALMEIDA": "JUVENIL A", "ALEXIS CIRIA": "JUVENIL A", "ALFONSO ROMERO": "JUVENIL A", "MARCOS VIEGA": "JUVENIL A", "ARIEL NKOGHE": "JUVENIL A", "AARÓN GÓMEZ": "JUVENIL A", "GABRIEL VALERO": "JUVENIL A", "JOEL PLEGUEZUELOS": "JUVENIL A", "MELVIN UKPEIGBE": "JUVENIL A", "BRUNO GALASSI": "JUVENIL A", "RUBÉN MARTÍNEZ": "JUVENIL A", "JAVIER MENA": "JUVENIL A", "GUILLE GONZÁLEZ": "JUVENIL A", "IKER DOBLAS": "JUVENIL A", "DIEGO LACOSTA": "JUVENIL B", "LUIS PAULO": "JUVENIL B", "FERNANDO VEGA": "JUVENIL B", "SANTIAGO DEL PINO": "JUVENIL B", "YEREMAIAH RAMOS": "JUVENIL B", "RODRIGO VELASCO": "JUVENIL B", "ARES CAPATANA": "JUVENIL B", "ENZO ALVES": "JUVENIL B", "LÉO LEMAITRE": "JUVENIL B", "MATEO GARRIDO": "JUVENIL B", "MARCO COMPANY": "JUVENIL B", "RAÚL ANDREI PERTEA": "JUVENIL B", "BRYAN BUGARÍN": "JUVENIL B", "GUILLERMO PONCE": "JUVENIL B", "JUAN CASADO": "JUVENIL B", "ANDRÉS  CORCOBA": "JUVENIL B", "PELAYO PALOMO": "JUVENIL B", "RUBÉN LÓPEZ": "JUVENIL B", "ALEJANDRO MORA": "JUVENIL B", "NICOLÁS SAN PÍO": "JUVENIL B", "CARLOS LARDÍN": "JUVENIL B", "JL ESPINOSA": "JUVENIL B", "RAFAEL SALES": "JUVENIL B", "BELTRÁN CAPOTE": "JUVENIL C", "ALEJANDRO CASTAÑO": "JUVENIL C", "J. ALBERTO CASTELAU": "JUVENIL C", "EDUARDO VALENTIN": "JUVENIL C", "MATEO POZO": "JUVENIL C", "MATIAS MARTIN": "JUVENIL C", "HUGO SARMIENTO": "JUVENIL C", "OMAR CHAOUI": "JUVENIL C", "MARIO BULLÓN": "JUVENIL C", "PABLO IBAÑEZ": "JUVENIL C", "HÉCTOR MARTÍNEZ": "JUVENIL C", "IZAN MESA": "JUVENIL C", "ÁLVARO RIVERA": "JUVENIL C", "GUILLERMO DIAZ": "JUVENIL C", "JESÚS PALACIOS": "JUVENIL C", "RUBEN DÍAZ": "JUVENIL C", "GUILLERMO LÓPEZ": "JUVENIL C", "JENRY HERNANDEZ": "JUVENIL C", "PABLO MARTINEZ": "JUVENIL C", "DIEGO SANCHEZ": "JUVENIL C", "MANUEL ROMERO": "JUVENIL C", "MOCTAR CHERIF": "JUVENIL C", "NILS LEON WESTIN": "JUVENIL C", "JAIRO MORILLA": "JUVENIL C", "VÍCTOR RIVAS": "JUVENIL C", "IKER DIEPA": "CADETE A", "HUGO MEDINA": "CADETE A", "UNAI ORDOÑEZ": "CADETE A", "JOEL PALLÉ": "CADETE A", "FERNANDO PEREIRA": "CADETE A", "ADRIÁN TALAVERA": "CADETE A", "IGNACIO ALAMEDA": "CADETE A", "ALVARO BARRAL": "CADETE A", "MARTIN ESPUELA": "CADETE A", "AITOR GANDIA": "CADETE A", "DAVID KRAVETS": "CADETE A", "ADRIÁN MORALES": "CADETE A", "VICTOR  PLAZAS": "CADETE A", "CARLOS SÁNCHEZ": "CADETE A", "ASIER SANCHEZ": "CADETE A", "ASIER SANTOYO": "CADETE A", "ALVARO VEGA": "CADETE A", "DANIEL GONZÁLEZ": "CADETE A", "HÉCTOR MONTERO": "CADETE A", "IZAN RAMIREZ": "CADETE A", "HUGO TORRESANO": "CADETE A", "IVÁN VÁZQUEZ": "CADETE A", "GORKA ABASCAL": "CADETE A", "AITOR TORONDEL": "CADETE A", "HUGO MORENO": "CADETE A"};
+const origen = {};
 
 // ══════════════════════════════════════════════════
 // ESTADO
@@ -475,7 +588,8 @@ let pos  = {};   // "dia|eq|nombre" → [top,left]
 let colNames = {};
 // Info de promoción: promInfo[dia][eqOrigen][nombre] = 'CASTILLA' (equipo destino)
 let promInfo = {};
-let multiEq  = {}; // multiEq[dia][nombre] = [eq1, eq2, ...] — jugadores en varios equipos
+let multiEq    = {}; // multiEq[dia][nombre] = [eq1, eq2, ...] — jugadores en varios equipos
+let modoPartido = {}; // modoPartido[dia][eq] = true/false
 function initPromInfo(){ DIAS.forEach(d=>{ promInfo[d]={}; EQUIPOS.forEach(eq=>{ promInfo[d][eq]={}; }); }); }
 initPromInfo();
 EQUIPOS.forEach(eq=> colNames[eq]=[eq==='CASTILLA'?'1ER EQUIPO':'PROMOCIÓN','LESIÓN','OTROS']);
@@ -832,6 +946,124 @@ function capturarCampo(eq, card){
   });
 }
 
+// ══════════════════════════════════════════════════
+// PANEL SESIONES FIREBASE
+// ══════════════════════════════════════════════════
+
+function abrirFbPanel(){
+  if(!window._fbReady){ toast('⏳ Firebase no conectado aún'); return; }
+  document.getElementById('fb-overlay').classList.add('open');
+  renderFbLista();
+}
+
+function cerrarFbPanel(){
+  document.getElementById('fb-overlay').classList.remove('open');
+}
+
+async function renderFbLista(){
+  const lista = document.getElementById('fb-lista');
+  lista.innerHTML = '<div class="fb-empty">Cargando...</div>';
+  const sesiones = await window.fbListarSesiones();
+  if(!sesiones.length){
+    lista.innerHTML = '<div class="fb-empty">No hay sesiones guardadas</div>';
+    return;
+  }
+  // Ordenar por timestamp más reciente
+  sesiones.sort((a,b)=> (b._ts?.seconds||0) - (a._ts?.seconds||0));
+  lista.innerHTML = '';
+  sesiones.forEach(s=>{
+    const row = document.createElement('div');
+    row.className = 'fb-sesion-row';
+    const fecha = s._ts?.seconds
+      ? new Date(s._ts.seconds*1000).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})
+      : '';
+    row.innerHTML = `
+      <span class="fb-sesion-nombre" title="${s._nombre}">${s._nombre}</span>
+      <span class="fb-sesion-ts">${fecha}</span>
+      <button class="fb-btn cargar" onclick="fbCargar('${s._nombre}')">⬇️ Cargar</button>
+      <button class="fb-btn borrar" onclick="fbBorrar('${s._nombre}', this)">🗑️</button>`;
+    lista.appendChild(row);
+  });
+}
+
+async function fbGuardarActual(){
+  if(!window._fbReady){ toast('⏳ Firebase no conectado'); return; }
+  const inp = document.getElementById('fb-nueva-inp');
+  const nombre = inp.value.trim();
+  if(!nombre){ toast('⚠️ Escribe un nombre'); return; }
+  toast('☁️ Guardando...');
+  const payload = {
+    data, pos, plantillas, origen,
+    colNames, extraZonas, promInfo, multiEq, modoPartido, fechas: FECHAS
+  };
+  const ok = await window.fbGuardarSesion(nombre, payload);
+  if(ok){
+    toast('✅ Guardado en la nube: '+nombre);
+    inp.value = '';
+    renderFbLista();
+  } else {
+    toast('❌ Error al guardar en Firebase');
+  }
+}
+
+async function fbCargar(nombre){
+  if(!window._fbReady){ toast('⏳ Firebase no conectado'); return; }
+  if(!confirm('¿Cargar "'+nombre+'"? Se sobreescribirá lo actual.')){ return; }
+  toast('☁️ Cargando...');
+  const payload = await window.fbCargarSesion(nombre);
+  if(!payload){ toast('❌ No se encontró la sesión'); return; }
+  if(payload.data)        data        = payload.data;
+  if(payload.pos)         pos         = payload.pos;
+  if(payload.plantillas)  plantillas  = payload.plantillas;
+  if(payload.origen)      Object.assign(origen, payload.origen);
+  if(payload.colNames)    colNames    = payload.colNames;
+  if(payload.extraZonas)  extraZonas  = payload.extraZonas;
+  if(payload.promInfo)    promInfo    = payload.promInfo;
+  if(payload.multiEq)     multiEq     = payload.multiEq;
+  if(payload.modoPartido) modoPartido = payload.modoPartido;
+  if(payload.fechas)      Object.assign(FECHAS, payload.fechas);
+  // Migraciones
+  if(colNames['CASTILLA']?.[0]==='PROMOCIÓN') colNames['CASTILLA'][0]='1ER EQUIPO';
+  autoGuardar();
+  render();
+  renderDias();
+  cerrarFbPanel();
+  toast('✅ Sesión "'+nombre+'" cargada');
+}
+
+async function fbBorrar(nombre, btn){
+  if(!confirm('¿Eliminar "'+nombre+'"? No se puede deshacer.')){ return; }
+  btn.textContent = '...';
+  const ok = await window.fbEliminarSesion(nombre);
+  if(ok){
+    toast('🗑️ "'+nombre+'" eliminado');
+    renderFbLista();
+  } else {
+    toast('❌ Error al eliminar');
+    btn.textContent = '🗑️';
+  }
+}
+
+// Cerrar al clicar fuera
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('fb-overlay').addEventListener('click', e=>{
+    if(e.target===document.getElementById('fb-overlay')) cerrarFbPanel();
+  });
+  // Cargar plantillas Firebase cuando esté listo
+  window.addEventListener('firebase-ready', ()=>{
+    if(window._fbPlantillas){
+      // Solo usar si no hay datos en localStorage
+      const hayLocal = localStorage.getItem('rm_cantera_v2');
+      if(!hayLocal){
+        Object.assign(plantillas, window._fbPlantillas);
+        if(window._fbOrigen) Object.assign(origen, window._fbOrigen);
+        render();
+        toast('☁️ Plantillas cargadas desde Firebase');
+      }
+    }
+  });
+});
+
 // ── Exportar datos a fichero JSON
 function exportarDatos(){
   try{
@@ -878,6 +1110,7 @@ function cargarFicheroImport(ev){
       if(payload.extraZonas) extraZonas = payload.extraZonas;
       if(payload.promInfo)   promInfo   = payload.promInfo;
     if(payload.multiEq)    multiEq    = payload.multiEq;
+    if(payload.modoPartido) modoPartido = payload.modoPartido;
       if(payload.fechas)     Object.assign(FECHAS, payload.fechas);
       // Migración Castilla
       if(colNames['CASTILLA'] && colNames['CASTILLA'][0]==='PROMOCIÓN') colNames['CASTILLA'][0]='1ER EQUIPO';
@@ -1408,6 +1641,10 @@ function buildCard(eq){
   const hdr=mk('div','card-hdr');
   const nm=mk('div','card-hdr-name'); nm.textContent=eq; hdr.appendChild(nm);
   const right=mk('div','card-hdr-right');
+  const modoB=mk('button','modo-btn'+(esPartido(eq)?' partido':''));
+  modoB.textContent=esPartido(eq)?'⚽ PARTIDO':'🏋️ ENTRENO';
+  modoB.onclick=(e)=>{e.stopPropagation();togglePartido(eq);};
+  right.appendChild(modoB);
   const cnt=mk('div','card-hdr-count');
   cnt.id='count-'+eq.replace(/ /g,'_');
   cnt.textContent=d.campo.length?countLabel(eq,d.campo):'0';
@@ -1422,6 +1659,12 @@ function buildCard(eq){
   right.appendChild(camBtn);
   hdr.appendChild(right);
   card.appendChild(hdr);
+  // Banner partido
+  if(esPartido(eq)){
+    const banner=mk('div','partido-banner');
+    banner.textContent='⚽ PARTIDO';
+    card.appendChild(banner);
+  }
 
   // Campo
   const cWrap=mk('div','campo-wrap dz');
@@ -1452,6 +1695,19 @@ function buildCard(eq){
   });
   card.appendChild(cWrap);
 
+  // Banquillo (solo en modo partido, justo debajo del campo)
+  if(esPartido(eq)){
+    const zBanq=mk('div','zona-banquillo dz');
+    zBanq.dataset.eq=eq; zBanq.dataset.zona='banquillo';
+    const lblB=mk('div','zona-lbl'); lblB.textContent='🪑 BANQUILLO';
+    zBanq.appendChild(lblB);
+    const cwB=mk('div','chips-wrap');
+    d.banquillo.forEach(n=>cwB.appendChild(chip(n,eq,'banquillo','c-naranja','cz')));
+    zBanq.appendChild(cwB);
+    zBanq.appendChild(buildAddInput(eq,'banquillo'));
+    card.appendChild(zBanq);
+  }
+
   // Disponibles
   const zDisp=mk('div','zona-disponibles dz');
   zDisp.dataset.eq=eq; zDisp.dataset.zona='disponibles';
@@ -1463,18 +1719,7 @@ function buildCard(eq){
   zDisp.appendChild(buildAddInput(eq,'disponibles'));
   card.appendChild(zDisp);
 
-  // Banquillo
-  const zBanq=mk('div','zona-banquillo dz');
-  zBanq.dataset.eq=eq; zBanq.dataset.zona='banquillo';
-  const lblB=mk('div','zona-lbl'); lblB.textContent='🪑 BANQUILLO (PARTIDO)';
-  zBanq.appendChild(lblB);
-  const cwB=mk('div','chips-wrap');
-  d.banquillo.forEach(n=>cwB.appendChild(chip(n,eq,'banquillo','c-azul','cz')));
-  zBanq.appendChild(cwB);
-  zBanq.appendChild(buildAddInput(eq,'banquillo'));
-  card.appendChild(zBanq);
-
-  // Añadir al campo — input debajo del banquillo
+  // Añadir al campo — input debajo del campo
   const addCampoWrap = mk('div','');
   addCampoWrap.style.cssText='padding:3px 10px 4px;background:rgba(0,0,0,.06);border-top:1px solid rgba(0,0,0,.07);';
   addCampoWrap.appendChild(buildAddInput(eq,'campo'));
@@ -1620,132 +1865,143 @@ function esMulti(nombre){
   return eqsDeNombre(dia, nombre).length > 1;
 }
 
+// ── Toggle modo partido/entrenamiento
+function togglePartido(eq){
+  if(!modoPartido[dia]) modoPartido[dia]={};
+  modoPartido[dia][eq] = !modoPartido[dia][eq];
+  autoGuardar();
+  renderCards();
+}
+function esPartido(eq){
+  return !!(modoPartido[dia]?.[eq]);
+}
+
 // ══════════════════════════════════════════════════
 // DRAG
 // ══════════════════════════════════════════════════
+// ── DRAG UNIFICADO — cualquier chip puede ir a cualquier zona o campo ──
 function initDrag(){
-  document.querySelectorAll('.cf').forEach(c=>{
-    c.addEventListener('touchstart',e=>{e.preventDefault();startField(c,e.touches[0]);},{passive:false});
-    c.addEventListener('mousedown', e=>{if(e.button)return;e.preventDefault();startField(c,e);});
-  });
-  document.querySelectorAll('.cz').forEach(c=>{
-    c.addEventListener('touchstart',e=>{e.preventDefault();startZone(c,e.touches[0]);},{passive:false});
-    c.addEventListener('mousedown', e=>{if(e.button)return;e.preventDefault();startZone(c,e);});
+  // Todos los chips usan el mismo handler universal
+  document.querySelectorAll('.cf,.cz').forEach(c=>{
+    c.addEventListener('touchstart',e=>{e.preventDefault();startChip(c,e.touches[0]);},{passive:false});
+    c.addEventListener('mousedown', e=>{if(e.button)return;e.preventDefault();startChip(c,e);});
   });
 }
 
-function startField(c,ev){
-  drag={mode:'field',c,pof:c.parentElement,campo:c.parentElement.closest('.campo-wrap'),eq:c.dataset.eq,nombre:c.dataset.nombre};
+function startChip(c,ev){
+  const esDeCampo = c.classList.contains('cf');
+  drag={
+    c, nombre:c.dataset.nombre, eq:c.dataset.eq, zona:c.dataset.zona||'campo',
+    esDeCampo,
+    pof: esDeCampo ? c.parentElement : null,
+    campo: esDeCampo ? c.parentElement.closest('.campo-wrap') : null
+  };
   c.classList.add('dragging');
-  c.parentElement.classList.add('no-anim');
-  document.getElementById('trash-zone').classList.add('visible');
-  const r=c.getBoundingClientRect();
-  dOff.x=ev.clientX-r.left-r.width/2; dOff.y=ev.clientY-r.top-r.height/2;
-  on('touchmove',moveField,{passive:false}); on('touchend',endField);
-  on('mousemove',moveField); on('mouseup',endField);
-}
-function moveField(e){
-  e.preventDefault&&e.preventDefault();
-  if(!drag||drag.mode!=='field')return;
-  const ev=e.touches?e.touches[0]:e;
-  const tr=document.getElementById('trash-zone').getBoundingClientRect();
-  const sobreTrash=ev.clientX>=tr.left&&ev.clientX<=tr.right&&ev.clientY>=tr.top&&ev.clientY<=tr.bottom;
-  document.getElementById('trash-zone').classList.toggle('over',sobreTrash);
-  const cr=drag.campo.getBoundingClientRect();
-  drag.pof.style.top  =clamp(((ev.clientY-dOff.y-cr.top   )/cr.height)*100,2,96)+'%';
-  drag.pof.style.left =clamp(((ev.clientX-dOff.x-cr.left  )/cr.width )*100,2,97)+'%';
-}
-function endField(e){
-  off('touchmove',moveField);off('touchend',endField);off('mousemove',moveField);off('mouseup',endField);
-  if(!drag||drag.mode!=='field')return;
-  drag.c.classList.remove('dragging');
-  drag.pof.classList.remove('no-anim');
-  const ev=e.changedTouches?e.changedTouches[0]:e;
-  const cr=drag.campo.getBoundingClientRect();
-  const inside=ev.clientX>=cr.left&&ev.clientX<=cr.right&&ev.clientY>=cr.top&&ev.clientY<=cr.bottom;
-  const tr=document.getElementById('trash-zone');
-  tr.classList.remove('visible','over');
-  const trR=tr.getBoundingClientRect();
-  const sobreTrash=ev.clientX>=trR.left&&ev.clientX<=trR.right&&ev.clientY>=trR.top&&ev.clientY<=trR.bottom;
-  if(sobreTrash||!inside){
-    // Borrar del campo
-    const arr=data[dia][drag.eq].campo;
-    const i=arr.indexOf(drag.nombre); if(i>=0) arr.splice(i,1);
-    borrarMultiEq(dia,drag.nombre,drag.eq);
-    drag.pof.remove();
-    autoGuardar(); updateCount(drag.eq);
-    drag=null; return;
+  if(esDeCampo) c.parentElement.classList.add('no-anim');
+  // Ghost para chips de zona
+  if(!esDeCampo){
+    const g=document.getElementById('ghost');
+    g.className='chip '+c.className.replace(/cf|cz|dragging/g,'').trim();
+    g.textContent=c.dataset.nombre; g.style.display='block';
   }
-  // Snap al slot más cercano
-  const rawTop =clamp(((ev.clientY-dOff.y-cr.top   )/cr.height)*100,2,96);
-  const rawLeft=clamp(((ev.clientX-dOff.x-cr.left  )/cr.width )*100,2,97);
-  const [snapT,snapL] = snapToGrid(drag.eq, drag.nombre, rawTop, rawLeft);
-  savePos(dia,drag.eq,drag.nombre,snapT,snapL);
-  drag.pof.style.top  = snapT+'%';
-  drag.pof.style.left = snapL+'%';
-  document.getElementById('trash-zone').classList.remove('visible','over');
-  updateCount(drag.eq);
-  autoGuardar();
-  drag=null;
-}
-
-function startZone(c,ev){
-  drag={mode:'zone',c,eq:c.dataset.eq,zona:c.dataset.zona,nombre:c.dataset.nombre};
-  c.classList.add('dragging');
   document.getElementById('trash-zone').classList.add('visible');
-  const g=document.getElementById('ghost');
-  g.className='chip '+c.className.replace(/cf|cz|dragging/g,'').trim();
-  g.textContent=c.dataset.nombre; g.style.display='block';
   const r=c.getBoundingClientRect();
   dOff.x=ev.clientX-r.left-r.width/2; dOff.y=ev.clientY-r.top-r.height/2;
   moveGhost(ev.clientX,ev.clientY);
-  on('touchmove',moveZone,{passive:false});on('touchend',endZone);
-  on('mousemove',moveZone);on('mouseup',endZone);
+  on('touchmove',moveChip,{passive:false}); on('touchend',endChip);
+  on('mousemove',moveChip); on('mouseup',endChip);
 }
-function moveZone(e){
+
+function moveChip(e){
   e.preventDefault&&e.preventDefault();
-  if(!drag||drag.mode!=='zone')return;
+  if(!drag)return;
   const ev=e.touches?e.touches[0]:e;
   moveGhost(ev.clientX,ev.clientY);
+  // Si viene del campo, mover el pof visualmente
+  if(drag.esDeCampo && drag.pof && drag.campo){
+    const cr=drag.campo.getBoundingClientRect();
+    drag.pof.style.top  =clamp(((ev.clientY-dOff.y-cr.top   )/cr.height)*100,2,96)+'%';
+    drag.pof.style.left =clamp(((ev.clientX-dOff.x-cr.left  )/cr.width )*100,2,97)+'%';
+  }
+  // Highlight zona bajo cursor
   document.querySelectorAll('.dz').forEach(z=>z.classList.remove('dz-active'));
   const t=document.elementFromPoint(ev.clientX,ev.clientY);
   if(t){const dz=t.closest('.dz');if(dz)dz.classList.add('dz-active');}
+  // Hover papelera
   const tr=document.getElementById('trash-zone').getBoundingClientRect();
   const sobreTrash=ev.clientX>=tr.left&&ev.clientX<=tr.right&&ev.clientY>=tr.top&&ev.clientY<=tr.bottom;
   document.getElementById('trash-zone').classList.toggle('over',sobreTrash);
 }
-function endZone(e){
-  off('touchmove',moveZone);off('touchend',endZone);off('mousemove',moveZone);off('mouseup',endZone);
-  if(!drag||drag.mode!=='zone')return;
+
+function endChip(e){
+  off('touchmove',moveChip);off('touchend',endChip);off('mousemove',moveChip);off('mouseup',endChip);
+  if(!drag)return;
   document.getElementById('ghost').style.display='none';
   drag.c.classList.remove('dragging');
+  if(drag.pof) drag.pof.classList.remove('no-anim');
   document.querySelectorAll('.dz').forEach(z=>z.classList.remove('dz-active'));
+  const tr=document.getElementById('trash-zone');
+  tr.classList.remove('visible','over');
   const ev=e.changedTouches?e.changedTouches[0]:e;
-  const t=document.elementFromPoint(ev.clientX,ev.clientY);
-  const dz=t&&t.closest('.dz');
-  document.getElementById('trash-zone').classList.remove('visible','over');
-  const trEl=document.getElementById('trash-zone');
-  const trR2=trEl.getBoundingClientRect();
-  const sobreTrash2=ev.clientX>=trR2.left&&ev.clientX<=trR2.right&&ev.clientY>=trR2.top&&ev.clientY<=trR2.bottom;
-  if(sobreTrash2){
+
+  // ── Papelera
+  const trR=tr.getBoundingClientRect();
+  if(ev.clientX>=trR.left&&ev.clientX<=trR.right&&ev.clientY>=trR.top&&ev.clientY<=trR.bottom){
     const arr=data[dia][drag.eq][drag.zona];
     const i=arr.indexOf(drag.nombre); if(i>=0) arr.splice(i,1);
     borrarMultiEq(dia,drag.nombre,drag.eq);
+    if(drag.pof) drag.pof.remove();
     toast('🗑️ '+drag.nombre+' eliminado');
     drag=null; render(); return;
   }
-  if(!dz){drag=null;return;}
+
+  // ── Detectar zona destino
+  const t=document.elementFromPoint(ev.clientX,ev.clientY);
+  const dz=t&&t.closest('.dz');
+
+  if(!dz){
+    // Soltado fuera de todo — si era del campo volver a snap, si era de zona no hacer nada
+    if(drag.esDeCampo && drag.campo){
+      const cr=drag.campo.getBoundingClientRect();
+      const inside=ev.clientX>=cr.left&&ev.clientX<=cr.right&&ev.clientY>=cr.top&&ev.clientY<=cr.bottom;
+      if(inside){
+        const rawT=clamp(((ev.clientY-dOff.y-cr.top   )/cr.height)*100,2,96);
+        const rawL=clamp(((ev.clientX-dOff.x-cr.left  )/cr.width )*100,2,97);
+        const [snapT,snapL]=snapToGrid(drag.eq,drag.nombre,rawT,rawL);
+        savePos(dia,drag.eq,drag.nombre,snapT,snapL);
+        drag.pof.style.top=snapT+'%'; drag.pof.style.left=snapL+'%';
+        updateCount(drag.eq); autoGuardar();
+      } else {
+        // Fuera del campo → borrar
+        const arr=data[dia][drag.eq].campo;
+        const i=arr.indexOf(drag.nombre); if(i>=0) arr.splice(i,1);
+        drag.pof.remove();
+        autoGuardar(); updateCount(drag.eq);
+        render();
+      }
+    }
+    drag=null; return;
+  }
+
   const toEq=dz.dataset.eq, toZona=dz.dataset.zona;
-  if(drag.eq===toEq&&drag.zona===toZona){drag=null;return;}
+
+  // ── Destino: campo
   if(toZona==='campo'){
     const cr=dz.getBoundingClientRect();
     const rawT=clamp(((ev.clientY-cr.top )/cr.height)*100,2,96);
     const rawL=clamp(((ev.clientX-cr.left)/cr.width )*100,2,97);
     const [snapT,snapL]=snapToGrid(toEq,drag.nombre,rawT,rawL);
     savePos(dia,toEq,drag.nombre,snapT,snapL);
+    move(drag.eq,drag.zona,toEq,'campo',drag.nombre);
+    drag=null; render(); return;
   }
+
+  // ── Destino: misma zona origen → recolocar en campo si viene del campo
+  if(drag.eq===toEq && drag.zona===toZona){ drag=null; return; }
+
+  // ── Destino: cualquier otra zona
   move(drag.eq,drag.zona,toEq,toZona,drag.nombre);
-  drag=null;render();
+  drag=null; render();
 }
 
 const ZONA_NAMES={campo:'Campo',banquillo:'Banquillo',disponibles:'Disponibles',promovidos_1er:'Promovido',lesionados:'Lesión',otros:'Otros'};
