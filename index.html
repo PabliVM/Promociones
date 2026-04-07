@@ -614,13 +614,15 @@ function buildAddInput(eq, zona){
       savePos(dia,eq,nombre,t,l);
     }
     // Si el jugador ya está en otro equipo hoy → marcar como multi (borde rojo)
-    // NO quitarlo del equipo original ni auto-promocionar
     const eqOrigen2 = origen[nombre];
     const yaEnOtroEq = EQUIPOS.some(e=> e!==eq &&
       ZONAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre))
     );
     if(yaEnOtroEq){
+      // Ya está en otro equipo → multi, no tocar el original
       registrarMultiEq(dia, nombre, eq);
+      EQUIPOS.filter(e=> e!==eq && ZONAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre)))
+        .forEach(e=> registrarMultiEq(dia, nombre, e));
     } else if(eqOrigen2 && eqOrigen2 !== eq && !yaEnOtroEq){
       // Auto-promoción clásica (viene de columna promoción, no del campo)
       ZONAS.forEach(z=>{
@@ -1455,16 +1457,17 @@ function borrarMultiEq(d, nombre, eq){
   multiEq[d][nombre] = multiEq[d][nombre].filter(e=>e!==eq);
   if(multiEq[d][nombre].length<=1) delete multiEq[d][nombre];
 }
+// Zonas que cuentan como "presencia activa" en un equipo (excluye promovidos_1er)
+const ZONAS_ACTIVAS = ['campo','banquillo','disponibles','lesionados','otros','extra'];
+
 function eqsDeNombre(d, nombre){
-  // Equipos en los que está este jugador hoy
+  // Equipos donde el jugador tiene presencia ACTIVA hoy (no como promovido)
   return EQUIPOS.filter(eq=>
-    ZONAS.some(z=>(data[d]?.[eq]?.[z]||[]).includes(nombre)) ||
-    (data[d]?.[eq]?.campo||[]).includes(nombre)
+    ZONAS_ACTIVAS.some(z=>(data[d]?.[eq]?.[z]||[]).includes(nombre))
   );
 }
 function esMulti(nombre){
-  const eqs = eqsDeNombre(dia, nombre);
-  return eqs.length > 1;
+  return eqsDeNombre(dia, nombre).length > 1;
 }
 
 // ══════════════════════════════════════════════════
@@ -1571,37 +1574,51 @@ const ZONA_NAMES={campo:'Campo',banquillo:'Banquillo',disponibles:'Disponibles',
 function move(fromEq,fromZona,toEq,toZona,nombre){
   const arr=data[dia][fromEq][fromZona];
   const i=arr.indexOf(nombre); if(i===-1)return;
-  // Si vuelve a su equipo origen, limpiar la promoción
-  if(toEq === origen[nombre] && promInfo[dia]?.[toEq]?.[nombre]){
-    delete promInfo[dia][toEq][nombre];
+
+  // ── ¿El jugador ya está en otro equipo hoy? → es multi-equipo
+  const yaEnOtroEq = EQUIPOS.some(e=> e!==toEq &&
+    ZONAS.some(z=>(data[dia][e]?.[z]||[]).includes(nombre))
+  );
+
+  // Si mueve dentro del mismo equipo → movimiento normal
+  if(fromEq === toEq){
+    arr.splice(i,1);
+    data[dia][toEq][toZona].push(nombre);
+    toast(nombre+' → '+ZONA_NAMES[toZona]);
+    return;
   }
-  if(toZona!=='campo'){
-    // Excluir la zona de origen para no detectar falso duplicado
-    const yaEsta=ZONAS.some(z=>{
-      if(fromEq===toEq && z===fromZona) return false;
-      return (data[dia][toEq][z]||[]).includes(nombre);
-    });
-    if(yaEsta){
-      showAlert('⚠️ '+nombre+' ya está en '+toEq+'. ¿Añadir igualmente?',()=>{
-        arr.splice(i,1);
-        data[dia][toEq][toZona].push(nombre);
-        toast('⚠️ '+nombre+' duplicado en '+ZONA_NAMES[toZona]);
-        render();
-      });
-      return;
-    }
+
+  // Si el jugador ya está en toEq (no arrastrarlo desde ahí)
+  const yaEnDestino = ZONAS.some(z=>(data[dia][toEq]?.[z]||[]).includes(nombre));
+  if(yaEnDestino){
+    // Solo recolocar dentro de toEq si viene de toEq
+    arr.splice(i,1);
+    data[dia][toEq][toZona].push(nombre);
+    toast(nombre+' → '+ZONA_NAMES[toZona]);
+    borrarMultiEq(dia, nombre, fromEq);
+    return;
   }
+
+  // ── Mover a equipo distinto
   arr.splice(i,1);
+
+  // Si ya estaba en algún equipo → borde rojo (multi), NO quitar del original
+  if(yaEnOtroEq){
+    registrarMultiEq(dia, nombre, toEq);
+    registrarMultiEq(dia, nombre, fromEq);
+    data[dia][toEq][toZona].push(nombre);
+    toast('🔴 '+nombre+' en varios equipos hoy');
+    return;
+  }
+
+  // Promoción clásica: jugador de su equipo origen va a otro
   const eqOrigen = origen[nombre];
-  // Si el jugador va a un equipo distinto al suyo de origen → auto-promoción
   if(eqOrigen && eqOrigen !== toEq){
-    // Quitar de todas las zonas del equipo origen
     ZONAS.forEach(z=>{
       const d2 = data[dia][eqOrigen]?.[z] || [];
       const di = d2.indexOf(nombre);
       if(di>=0) d2.splice(di,1);
     });
-    // Añadir a promovidos_1er del equipo origen con info del destino
     if(!data[dia][eqOrigen].promovidos_1er) data[dia][eqOrigen].promovidos_1er=[];
     if(!data[dia][eqOrigen].promovidos_1er.includes(nombre)){
       data[dia][eqOrigen].promovidos_1er.push(nombre);
@@ -1609,14 +1626,13 @@ function move(fromEq,fromZona,toEq,toZona,nombre){
     if(!promInfo[dia]) promInfo[dia]={};
     if(!promInfo[dia][eqOrigen]) promInfo[dia][eqOrigen]={};
     promInfo[dia][eqOrigen][nombre] = toEq;
-  } else if(fromEq !== toEq){
-    // Mover entre equipos sin ser prestado — quitar de disponibles origen
-    EQUIPOS.forEach(eqBuscar=>{
-      const disp = data[dia][eqBuscar]?.disponibles || [];
-      const di = disp.indexOf(nombre);
-      if(di>=0) disp.splice(di,1);
-    });
   }
+
+  // Si vuelve a su equipo origen, limpiar promoción
+  if(toEq === origen[nombre] && promInfo[dia]?.[toEq]?.[nombre]){
+    delete promInfo[dia][toEq][nombre];
+  }
+
   data[dia][toEq][toZona].push(nombre);
   toast(nombre+' → '+ZONA_NAMES[toZona]);
 }
