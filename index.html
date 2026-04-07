@@ -875,17 +875,27 @@ function callupCard(c){
     (function(){
       var tl=[];
       if(c.conc&&(c.conc.date||c.conc.time||c.conc.lugar))
-        tl.push({s:c.conc.date||"0",h:'<div class="cc-mi" style="border-left:2px solid var(--navy);padding-left:8px;margin-left:4px"><div class="cc-mi-block"><span class="cc-mi-label">📍 Citación</span><span>'+(c.conc.date?fmtDateShort(c.conc.date)+" ":"")+(c.conc.time?c.conc.time+"h ":"")+(c.conc.lugar?"· "+esc(c.conc.lugar):"")+"</span>"+(c.conc.hotel?'<span class="cc-mi-sub">🏨 '+esc(c.conc.hotel)+"</span>":"")+"</div></div>"});
+        tl.push({s:c.conc.date||"0",type:"cite",label:"Citación",line:(c.conc.date?fmtDateShort(c.conc.date)+" ":"")+(c.conc.time?c.conc.time+"h ":"")+(c.conc.lugar?"· "+esc(c.conc.lugar):"")});
       if(c.traslado&&(c.traslado.date||c.traslado.transporte||c.traslado.desde))
-        tl.push({s:c.traslado.date||"1",h:'<div class="cc-mi" style="border-left:2px solid #3B82F6;padding-left:8px;margin-left:4px"><div class="cc-mi-block"><span class="cc-mi-label">✈️ Traslado</span><span>'+(c.traslado.date?fmtDateShort(c.traslado.date)+" ":"")+(c.traslado.time?c.traslado.time+"h ":"")+(c.traslado.desde&&c.traslado.hasta?esc(c.traslado.desde)+" → "+esc(c.traslado.hasta):"")+"</span>"+(c.traslado.transporte?'<span class="cc-mi-sub">'+esc(c.traslado.transporte)+"</span>":"")+"</div></div>"});
+        tl.push({s:c.traslado.date||"1",type:"trasl",label:"Traslado",line:(c.traslado.date?fmtDateShort(c.traslado.date)+" ":"")+(c.traslado.time?c.traslado.time+"h ":"")+(c.traslado.desde&&c.traslado.hasta?esc(c.traslado.desde)+" → "+esc(c.traslado.hasta):(c.traslado.transporte?esc(c.traslado.transporte):""))});
       if(c.matches&&c.matches.length)c.matches.forEach(function(m){
-        tl.push({s:m.date||"5",h:'<div class="cc-mi" style="border-left:2px solid var(--gold);padding-left:8px;margin-left:4px"><span style="font-weight:600">'+matchIcon(m.matchType)+" "+(m.rival?esc(m.rival):"TBD")+'</span>'+(m.date||m.time?'<span style="color:var(--text-muted);margin-left:4px">'+(m.date?fmtDateShort(m.date)+" ":"")+(m.time?m.time+"h":"")+"</span>":"")+"</div>"});
+        tl.push({s:m.date||"5",type:"match",label:matchIcon(m.matchType)+" "+(m.rival?esc(m.rival):"TBD"),line:(m.date?fmtDateShort(m.date)+" ":"")+(m.time?m.time+"h":"")});
       });
       if(c.vuelta&&(c.vuelta.date||c.vuelta.time||c.vuelta.desde))
-        tl.push({s:c.vuelta.date||"9",h:'<div class="cc-mi" style="border-left:2px solid var(--text-muted);padding-left:8px;margin-left:4px"><div class="cc-mi-block"><span class="cc-mi-label">🔙 Vuelta</span><span>'+(c.vuelta.date?fmtDateShort(c.vuelta.date)+" ":"")+(c.vuelta.time?c.vuelta.time+"h ":"")+(c.vuelta.desde&&c.vuelta.hasta?esc(c.vuelta.desde)+" → "+esc(c.vuelta.hasta):"")+"</span>"+(c.vuelta.transporte?'<span class="cc-mi-sub">'+esc(c.vuelta.transporte)+"</span>":"")+"</div></div>"});
+        tl.push({s:c.vuelta.date||"9",type:"vuelta",label:"Vuelta",line:(c.vuelta.date?fmtDateShort(c.vuelta.date)+" ":"")+(c.vuelta.time?c.vuelta.time+"h ":"")+(c.vuelta.desde&&c.vuelta.hasta?esc(c.vuelta.desde)+" → "+esc(c.vuelta.hasta):"")});
       if(!tl.length)return"";
       tl.sort(function(a,b){return a.s.localeCompare(b.s);});
-      return tl.map(function(t){return t.h;}).join("");
+      var colors={cite:"var(--navy)",trasl:"#3B82F6",match:"var(--gold)",vuelta:"var(--text-muted)"};
+      var bgColors={cite:"rgba(26,58,143,.12)",trasl:"rgba(59,130,246,.12)",match:"rgba(200,169,110,.15)",vuelta:"rgba(107,114,128,.12)"};
+      return'<div class="cc-tl" style="position:relative;padding-left:18px;margin-top:6px">'+
+        '<div style="position:absolute;left:5px;top:4px;bottom:4px;width:1.5px;background:var(--border-strong)"></div>'+
+        tl.map(function(t){
+          return'<div style="position:relative;margin-bottom:6px;padding-left:2px">'+
+            '<div style="position:absolute;left:-18px;top:3px;width:12px;height:12px;border-radius:50%;border:1.5px solid '+colors[t.type]+';background:'+bgColors[t.type]+'"></div>'+
+            '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:'+colors[t.type]+'">'+t.label+'</div>'+
+            (t.line?'<div style="font-size:12px;color:var(--text-mid)">'+t.line+'</div>':"")+
+            '</div>';
+        }).join("")+'</div>';
     })()+
     "</div>"+(pc>0?'<div class="cc-players">'+chips+"</div>":"")+
     "</article>";
