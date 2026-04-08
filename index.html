@@ -4097,19 +4097,68 @@ function onChipDoubleTap(c){
   const nombre = c.dataset.nombre;
   const eq     = c.dataset.eq;
   const zona   = c.dataset.zona || 'campo';
-  showAlert(`¿Eliminar a ${nombre} de ${zona === 'campo' ? 'el campo' : zona}?`, ()=>{
-    const arr = data[dia][eq][zona];
+  const eqPropio = origen[nombre] || eq; // equipo de origen real del jugador
+
+  // ── Regla: no se puede eliminar de disponibles del propio equipo ──
+  if(zona === 'disponibles' && eq === eqPropio){
+    toast('⚠️ ' + nombre + ' siempre debe estar en su equipo');
+    return;
+  }
+
+  // ── Mensaje según contexto ──
+  let msg;
+  if(zona === 'campo' || zona === 'banquillo'){
+    msg = `Quitar a ${nombre} del ${zona} → vuelve a disponibles`;
+  } else if(eq !== eqPropio){
+    msg = `Devolver a ${nombre} a ${eqPropio} (disponibles)`;
+  } else {
+    msg = `Quitar a ${nombre} de ${zona} → vuelve a disponibles`;
+  }
+
+  showAlert(msg, ()=>{
+    // 1. Quitar de la zona/equipo actual
+    const arr = data[dia][eq]?.[zona];
     if(arr){
       const i = arr.indexOf(nombre);
       if(i >= 0) arr.splice(i, 1);
     }
-    // Limpiar posición guardada si era del campo
+    // Limpiar posición de campo
     if(zona === 'campo') delete pos[key(dia, eq, nombre)];
+
+    // 2. Si estaba en un equipo prestado (no el propio), quitar de TODAS las zonas de ese equipo
+    if(eq !== eqPropio){
+      ZONAS_ACTIVAS.forEach(z => {
+        const a = data[dia][eq]?.[z];
+        if(!a) return;
+        const i = a.indexOf(nombre);
+        if(i >= 0) a.splice(i, 1);
+      });
+      // Limpiar posición de campo también
+      delete pos[key(dia, eq, nombre)];
+    }
+
+    // 3. Quitar de promovidos_1er en el equipo propio si estaba promovido
+    const prom = data[dia][eqPropio]?.promovidos_1er;
+    if(prom){
+      const pi = prom.indexOf(nombre);
+      if(pi >= 0) prom.splice(pi, 1);
+    }
+    // Limpiar promInfo
+    if(promInfo[dia]?.[eqPropio]) delete promInfo[dia][eqPropio][nombre];
+
+    // 4. Quitar de multiEq
     borrarMultiEq(dia, nombre, eq);
+
+    // 5. Volver a disponibles del equipo propio (si no está ya)
+    const disp = data[dia][eqPropio]?.disponibles;
+    if(disp && !disp.includes(nombre)){
+      disp.push(nombre);
+    }
+
     autoGuardar();
     render();
-    toast('🗑️ ' + nombre + ' eliminado');
-  }, 'Eliminar');
+    toast('↩️ ' + nombre + ' devuelto a disponibles de ' + eqPropio);
+  }, 'Confirmar');
 }
 
 function registerDoubleTap(c){
