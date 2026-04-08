@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Campograma RM</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <!-- Firebase -->
 <script type="module">
@@ -102,9 +102,38 @@ window.dispatchEvent(new Event('firebase-ready'));
   --border:#e2e8f0;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{background:#0a0f1a;font-family:'Barlow',sans-serif;min-height:100vh;min-height:100dvh;overflow-x:hidden;}
-/* ── Wrapper centrado para escritorio ── */
-#app-wrap{max-width:480px;margin:0 auto;position:relative;background:#07101e;min-height:100vh;min-height:100dvh;box-shadow:0 0 80px rgba(0,0,0,.8);overflow-x:hidden;padding-bottom:calc(60px + env(safe-area-inset-bottom,0px));padding-left:env(safe-area-inset-left,0);padding-right:env(safe-area-inset-right,0);}
+body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh;min-height:100dvh;overflow-x:hidden;}
+
+/* ── Wrapper responsive ── */
+#app-wrap{
+  max-width:520px;   /* móvil */
+  margin:0 auto;
+  position:relative;
+  background:#07101e;
+  min-height:100vh;min-height:100dvh;
+  box-shadow:0 0 60px rgba(0,0,0,.7);
+  overflow-x:hidden;
+  padding-bottom:calc(60px + env(safe-area-inset-bottom,0px));
+  padding-left:env(safe-area-inset-left,0);
+  padding-right:env(safe-area-inset-right,0);
+}
+
+/* ── Tablet (≥768px): 2 cols, wrapper más ancho ── */
+@media(min-width:768px){
+  #app-wrap{ max-width:900px; }
+  .cards-grid:not(.view-2):not(.view-4){ grid-template-columns:repeat(2,1fr)!important; gap:12px; padding:12px; }
+  #bottom-nav{ left:50%; transform:translateX(-50%); max-width:900px; }
+  #season-box,#cfg-tipos-box,#uyl-box,#reg-box,#plant-box,#fb-box{ max-width:600px; }
+}
+
+/* ── Desktop (≥1200px): 3 cols, wrapper ancho total ── */
+@media(min-width:1200px){
+  body{ background:#030910; }
+  #app-wrap{ max-width:1400px; box-shadow:none; }
+  .cards-grid:not(.view-2):not(.view-4){ grid-template-columns:repeat(3,1fr)!important; gap:14px; padding:14px; }
+  #bottom-nav{ left:50%; transform:translateX(-50%); max-width:1400px; }
+  #season-box,#cfg-tipos-box,#uyl-box{ max-width:680px; }
+}
 
 /* HEADER */
 /* ══ ENCABEZADO ══ */
@@ -123,9 +152,9 @@ body{background:#0a0f1a;font-family:'Barlow',sans-serif;min-height:100vh;min-hei
 }
 #hdr-titles{display:flex;flex-direction:column;gap:1px;}
 #hdr-club{
-  font-family:'Barlow Condensed',sans-serif;
-  font-size:22px;font-weight:900;
-  color:#ffffff;letter-spacing:.5px;
+  font-family:'Inter',sans-serif;
+  font-size:19px;font-weight:700;
+  color:#ffffff;letter-spacing:.2px;
   text-transform:uppercase;line-height:1;
 }
 #hdr-sub{
@@ -140,10 +169,10 @@ body{background:#0a0f1a;font-family:'Barlow',sans-serif;min-height:100vh;min-hei
   padding:5px 11px;border-radius:20px;
   border:1px solid rgba(255,255,255,.25);
   background:rgba(255,255,255,.08);
-  font-family:'Barlow Condensed',sans-serif;
-  font-size:13px;font-weight:700;
+  font-family:'Inter',sans-serif;
+  font-size:12px;font-weight:600;
   color:rgba(255,255,255,.9);
-  letter-spacing:.3px;cursor:pointer;
+  letter-spacing:.1px;cursor:pointer;
   transition:background .15s;
   white-space:nowrap;
 }
@@ -397,7 +426,7 @@ body{background:#0a0f1a;font-family:'Barlow',sans-serif;min-height:100vh;min-hei
 /* TABS */
 .tabs-scroll{overflow-x:auto;padding:7px 12px 4px;display:flex;gap:5px;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;}
 .tabs-scroll::-webkit-scrollbar{display:none;}
-.tab-dia{flex-shrink:0;padding:5px 12px;border-radius:20px;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);transition:all .15s;}
+.tab-dia{flex-shrink:0;padding:5px 12px;border-radius:20px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2px;text-transform:uppercase;background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);transition:all .15s;}
 .tab-dia.active{background:#fff;color:var(--rm-dark);}
 .tab-n{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;font-size:8px;font-weight:700;margin-left:3px;background:var(--verde);color:var(--verde-dk);}
 .tab-dia.active .tab-n{background:var(--rm-blue);color:#fff;}
@@ -975,9 +1004,9 @@ body{background:#0a0f1a;font-family:'Barlow',sans-serif;min-height:100vh;min-hei
 .cards-grid.view-4 .cols-estado{font-size:8px;}
 
 /* CARD */
-.card{background:#111827;border-radius:14px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.06);}
+.card{background:#111827;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.07);}
 .card-hdr{background:#0a1220;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(200,168,0,.2);}
-.card-hdr-name{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;color:#fff;letter-spacing:1.2px;text-transform:uppercase;}
+.card-hdr-name{font-family:'Inter',sans-serif;font-size:13px;font-weight:700;color:#fff;letter-spacing:.3px;text-transform:uppercase;}
 .card-hdr-right{display:flex;align-items:center;gap:5px;}
 .card-hdr-count{font-size:11px;color:rgba(255,255,255,.55);background:rgba(255,255,255,.07);padding:3px 10px;border-radius:20px;cursor:pointer;transition:all .15s;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.3px;}
 .card-hdr-count:active{background:var(--rm-gold);color:#000;}
@@ -992,10 +1021,10 @@ body{background:#0a0f1a;font-family:'Barlow',sans-serif;min-height:100vh;min-hei
 .campo-players{position:absolute;inset:0;pointer-events:none;}
 .pof{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;max-width:30%;transition:top .25s ease,left .25s ease;}
 .pof.no-anim{transition:none;}
-.pof .chip{font-size:clamp(10px,2.4vw,14px);font-weight:800;padding:3px 7px;width:100%;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.6);letter-spacing:.4px;}
+.pof .chip{font-size:clamp(9px,2.2vw,13px);font-weight:600;padding:3px 7px;width:100%;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.5);letter-spacing:.2px;}
 
 /* CHIP */
-.chip{display:inline-flex;align-items:center;justify-content:center;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:3px 8px;cursor:grab;user-select:none;touch-action:none;white-space:nowrap;-webkit-user-select:none;transition:box-shadow .1s,opacity .1s,transform .1s;}
+.chip{display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:3px 7px;cursor:grab;user-select:none;touch-action:none;white-space:nowrap;-webkit-user-select:none;transition:box-shadow .1s,opacity .1s,transform .1s;}
 .chip:active{transform:scale(.95);}
 .chip:active{cursor:grabbing;}
 .chip.dragging{opacity:.25;}
@@ -1655,41 +1684,57 @@ function updateCount(eq){
 // ══════════════════════════════════════════════════
 // SNAP AL SLOT MÁS CERCANO
 // ══════════════════════════════════════════════════
-function snapToGrid(eq, nombre, rawTop, rawLeft){
+// Devuelve posiciones reales de todos los jugadores en campo (excepto el que movemos)
+function posOcupadas(eq, nombreMovido){
   const campo = data[dia][eq].campo;
-  // Posiciones ya ocupadas (otros jugadores)
-  const ocupadas = new Set();
-  campo.forEach((n,i)=>{
-    if(n !== nombre){
-      const slotKey = SNAP_SLOTS.findIndex(([t,l])=>{
-        const p = pos[key(dia,eq,n)] || POS_DEF[i%POS_DEF.length];
-        return Math.abs(p[0]-t)<5 && Math.abs(p[1]-l)<5;
-      });
-      if(slotKey>=0) ocupadas.add(slotKey);
-    }
-  });
-
-  // Encontrar slot libre más cercano al punto de drop
-  let bestIdx=-1, bestDist=9999;
-  SNAP_SLOTS.forEach(([t,l],idx)=>{
-    if(ocupadas.has(idx)) return;
-    const d=Math.hypot(rawTop-t, rawLeft-l);
-    if(d<bestDist){ bestDist=d; bestIdx=idx; }
-  });
-
-  if(bestIdx>=0){
-    return SNAP_SLOTS[bestIdx];
-  }
-  return [rawTop, rawLeft]; // fallback si no hay slot libre
+  return campo
+    .filter(n => n !== nombreMovido)
+    .map((n,i) => pos[key(dia,eq,n)] || POS_DEF[i % POS_DEF.length] || [50,50]);
 }
 
-// Reordenar todos los jugadores del campo a la formación ordenada
+// Distancia mínima entre punto y lista de posiciones ocupadas
+function distMinOcupadas(t, l, ocupadas){
+  if(!ocupadas.length) return 999;
+  return Math.min(...ocupadas.map(([ot,ol]) => Math.hypot(t-ot, l-ol)));
+}
+
+// Radio de exclusión — los chips no se solapan si están al menos RADIO_MIN % separados
+const RADIO_MIN = 10; // % del campo
+
+function snapToGrid(eq, nombre, rawTop, rawLeft){
+  const ocupadas = posOcupadas(eq, nombre);
+
+  // 1. Si el punto exacto de drop está libre (sin vecino a < RADIO_MIN), usarlo
+  if(distMinOcupadas(rawTop, rawLeft, ocupadas) >= RADIO_MIN){
+    return [rawTop, rawLeft];
+  }
+
+  // 2. Si hay solapamiento, buscar el slot de la rejilla libre más cercano al drop
+  let bestIdx = -1, bestDist = 9999;
+  SNAP_SLOTS.forEach(([t,l], idx) => {
+    if(distMinOcupadas(t, l, ocupadas) < RADIO_MIN) return; // slot ocupado
+    const d = Math.hypot(rawTop - t, rawLeft - l);
+    if(d < bestDist){ bestDist = d; bestIdx = idx; }
+  });
+
+  if(bestIdx >= 0) return SNAP_SLOTS[bestIdx];
+
+  // 3. Fallback: posición exacta aunque haya solapamiento (campo lleno)
+  return [rawTop, rawLeft];
+}
+
+// Reordenar todos los jugadores del campo — garantiza sin solapamientos
 function autoAlinear(eq){
   const campo = data[dia][eq].campo;
   if(campo.length === 0) return;
-  // Asignar los primeros N slots a los jugadores en orden
-  campo.forEach((nombre, i)=>{
-    const [t,l] = SNAP_SLOTS[i] || [50, 50];
+  // Asignar slots en orden estricto: cada jugador al siguiente slot libre
+  const asignados = new Set();
+  campo.forEach((nombre) => {
+    // Encontrar el primer slot libre
+    let idx = 0;
+    while(idx < SNAP_SLOTS.length && asignados.has(idx)) idx++;
+    const [t,l] = SNAP_SLOTS[idx] || [50, 50];
+    asignados.add(idx);
     savePos(dia, eq, nombre, t, l);
   });
 }
@@ -1791,8 +1836,15 @@ function buildAddInput(eq, zona){
   function elegir(nombre){
     // Sin bloqueo por duplicados — libertad total
     if(zona==='campo'){
-      const n=data[dia][eq].campo.length;
-      const [t,l]=SNAP_SLOTS[n%SNAP_SLOTS.length]||[50,50];
+      // Buscar slot libre sin solapar con los ya colocados
+      const ocupadas = posOcupadas(eq, nombre);
+      let bestIdx = 0;
+      for(let i = 0; i < SNAP_SLOTS.length; i++){
+        const [t,l] = SNAP_SLOTS[i];
+        if(distMinOcupadas(t, l, ocupadas) >= RADIO_MIN){ bestIdx = i; break; }
+        bestIdx = i; // fallback: último índice si todo lleno
+      }
+      const [t,l] = SNAP_SLOTS[bestIdx] || [50,50];
       savePos(dia,eq,nombre,t,l);
     }
     // Sin lógica automática — el jugador se añade donde el usuario lo pone
