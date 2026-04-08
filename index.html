@@ -1002,40 +1002,42 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 .cards-grid{padding:10px;display:grid;grid-template-columns:1fr;gap:10px;}
 .cards-grid.view-1{grid-template-columns:1fr;}
 
-/* ── vista 2 columnas */
-.cards-grid.view-2{grid-template-columns:repeat(2,1fr);gap:8px;padding:8px;}
-.cards-grid.view-2 .campo-wrap{padding-bottom:108%;}
-.cards-grid.view-2 .card-hdr-name{font-size:11px;letter-spacing:.8px;}
-.cards-grid.view-2 .card-hdr{padding:6px 8px;}
-.cards-grid.view-2 .modo-btn{font-size:9px;padding:2px 6px;}
-.cards-grid.view-2 .snap-btn{padding:3px 5px;}
-/* chips en campo: más pequeños pero legibles */
-.cards-grid.view-2 .pof{max-width:46%;}
-.cards-grid.view-2 .pof .chip{font-size:clamp(7px,1.8vw,10px);padding:2px 4px;max-width:100%;}
-.cards-grid.view-2 .zona-disponibles{padding:4px 8px;min-height:28px;}
-.cards-grid.view-2 .zona-add{display:none;}
-.cards-grid.view-2 .cols-estado .col{padding:3px 5px;}
-.cards-grid.view-2 .col .chip{font-size:8px;padding:1px 4px;}
+/* ── vista 2 columnas × 3 filas (6 equipos) */
+.cards-grid.view-2col{grid-template-columns:repeat(2,1fr);gap:8px;padding:8px;}
+.cards-grid.view-2col .campo-wrap{padding-bottom:108%;}
+.cards-grid.view-2col .card-hdr-name{font-size:11px;letter-spacing:.8px;}
+.cards-grid.view-2col .card-hdr{padding:6px 8px;}
+.cards-grid.view-2col .modo-btn{font-size:9px;padding:2px 6px;}
+.cards-grid.view-2col .snap-btn,.cards-grid.view-2col .reset-btn{padding:3px 5px;}
+.cards-grid.view-2col .pof{max-width:46%;}
+.cards-grid.view-2col .pof .chip{font-size:clamp(7px,1.8vw,10px);padding:2px 4px;max-width:100%;}
+.cards-grid.view-2col .zona-disponibles{padding:4px 8px;min-height:28px;}
+.cards-grid.view-2col .zona-add{display:none;}
+.cards-grid.view-2col .cols-estado .col{padding:3px 5px;}
+.cards-grid.view-2col .col .chip{font-size:8px;padding:1px 4px;}
 
-/* ── vista 2×2 (4 campos) */
-.cards-grid.view-4{grid-template-columns:repeat(2,1fr);gap:5px;padding:5px;}
-.cards-grid.view-4 .campo-wrap{padding-bottom:90%;}
-.cards-grid.view-4 .card-hdr{padding:5px 8px;}
-.cards-grid.view-4 .card-hdr-name{font-size:9px;letter-spacing:.5px;}
-.cards-grid.view-4 .card-hdr-right{gap:3px;}
-.cards-grid.view-4 .modo-btn{font-size:8px;padding:2px 5px;}
-.cards-grid.view-4 .snap-btn{padding:2px 4px;}
-/* chips en campo: pequeños pero con separación para no solaparse */
-.cards-grid.view-4 .pof{max-width:44%;min-width:0;}
-.cards-grid.view-4 .pof .chip{
-  font-size:clamp(6px,1.5vw,9px);
+/* ── vista 3 columnas × 2 filas (6 equipos) */
+.cards-grid.view-3col{grid-template-columns:repeat(3,1fr);gap:5px;padding:5px;}
+.cards-grid.view-3col .campo-wrap{padding-bottom:90%;}
+.cards-grid.view-3col .card-hdr{padding:5px 8px;}
+.cards-grid.view-3col .card-hdr-name{font-size:9px;letter-spacing:.5px;}
+.cards-grid.view-3col .card-hdr-right{gap:2px;}
+.cards-grid.view-3col .modo-btn{font-size:8px;padding:2px 5px;}
+.cards-grid.view-3col .snap-btn,.cards-grid.view-3col .reset-btn{padding:2px 4px;font-size:8px;}
+.cards-grid.view-3col .pof{max-width:40%;min-width:0;}
+.cards-grid.view-3col .pof .chip{
+  font-size:clamp(6px,1.2vw,9px);
   padding:1px 3px;
   max-width:100%;
 }
-/* ocultar zonas secundarias para dar aire */
-.cards-grid.view-4 .zona-disponibles{padding:3px 6px;min-height:24px;}
-.cards-grid.view-4 .zona-add{display:none;}
-.cards-grid.view-4 .cols-estado{font-size:8px;}
+.cards-grid.view-3col .zona-disponibles{padding:3px 6px;min-height:22px;}
+.cards-grid.view-3col .zona-add{display:none;}
+.cards-grid.view-3col .cols-estado{font-size:8px;}
+.cards-grid.view-3col .col .chip{font-size:7px;padding:1px 3px;}
+
+/* compatibilidad view-2 y view-4 redirigen */
+.cards-grid.view-2{grid-template-columns:repeat(2,1fr);gap:8px;padding:8px;}
+.cards-grid.view-4{grid-template-columns:repeat(2,1fr);gap:5px;padding:5px;}
 
 /* CARD */
 .card{background:#111827;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.07);}
@@ -1633,22 +1635,33 @@ td.td-vacio{color:rgba(255,255,255,.12);}
 <div id="eq-strip-wrap">
   <div id="eq-strip"></div>
 </div>
-<!-- Barra de vista — separada y cómoda de tocar -->
+<!-- Barra de vista -->
 <div id="view-bar">
   <button class="view-btn active" id="vbtn-1" onclick="setView(1)" title="1 columna">
     <svg width="22" height="22" viewBox="0 0 18 18" fill="none" stroke-width="1.8">
-      <rect x="3" y="3" width="12" height="12" rx="1.5"/>
+      <rect x="3" y="2" width="12" height="14" rx="1.5"/>
     </svg>
   </button>
-  <button class="view-btn" id="vbtn-2" onclick="setView(4)" title="2×2">
+  <button class="view-btn" id="vbtn-2col" onclick="setView('2col')" title="2 columnas (3×2)">
     <svg width="22" height="22" viewBox="0 0 18 18" fill="none" stroke-width="1.8">
-      <rect x="1" y="1" width="7" height="7" rx="1.5"/>
-      <rect x="10" y="1" width="7" height="7" rx="1.5"/>
-      <rect x="1" y="10" width="7" height="7" rx="1.5"/>
-      <rect x="10" y="10" width="7" height="7" rx="1.5"/>
+      <rect x="1" y="1" width="7" height="5" rx="1"/>
+      <rect x="10" y="1" width="7" height="5" rx="1"/>
+      <rect x="1" y="7" width="7" height="5" rx="1"/>
+      <rect x="10" y="7" width="7" height="5" rx="1"/>
+      <rect x="1" y="13" width="7" height="4" rx="1"/>
+      <rect x="10" y="13" width="7" height="4" rx="1"/>
     </svg>
   </button>
-
+  <button class="view-btn" id="vbtn-3col" onclick="setView('3col')" title="3 columnas (2×3)">
+    <svg width="22" height="22" viewBox="0 0 18 18" fill="none" stroke-width="1.8">
+      <rect x="1" y="1" width="4" height="7" rx="1"/>
+      <rect x="7" y="1" width="4" height="7" rx="1"/>
+      <rect x="13" y="1" width="4" height="7" rx="1"/>
+      <rect x="1" y="10" width="4" height="7" rx="1"/>
+      <rect x="7" y="10" width="4" height="7" rx="1"/>
+      <rect x="13" y="10" width="4" height="7" rx="1"/>
+    </svg>
+  </button>
 </div>
 <div id="multi-eq-bar"></div>
 <div class="cards-grid view-1" id="grid"></div>
@@ -2781,8 +2794,8 @@ function buildCardPrimerEquipo(){
 // ══════════════════════════════════════════════════
 // SELECTOR DE VISTA
 // ══════════════════════════════════════════════════
-let vistaActual = 1; // 1, 4
-let eqsMultiSel = new Set(EQUIPOS); // equipos visibles en vista 2x2
+let vistaActual = '1'; // '1', '2col', '3col'
+let eqsMultiSel = new Set(EQUIPOS);
 
 function setView(n){
   vistaActual = n;
@@ -2790,14 +2803,14 @@ function setView(n){
   if(grid) grid.className = 'cards-grid view-'+n;
 
   // Botones activos
-  [1,4].forEach(v=>{
-    const btn=document.getElementById('vbtn-'+(v===4?'2':'1'));
-    if(btn) btn.classList.toggle('active', v===n);
+  ['1','2col','3col'].forEach(v=>{
+    const btn=document.getElementById('vbtn-'+v);
+    if(btn) btn.classList.toggle('active', v===String(n));
   });
 
-  // Mostrar/ocultar barra de selección de equipos
+  // La barra multi-eq solo en modo 3col (para seleccionar equipos si se quiere)
   const bar = document.getElementById('multi-eq-bar');
-  if(n===4){
+  if(n==='3col'){
     bar.classList.add('visible');
     renderMultiEqBar();
   } else {
@@ -3682,9 +3695,9 @@ function renderCards(){
   grid.className='cards-grid view-'+vistaActual;
   if(eqF==='1ER EQUIPO'){
     grid.appendChild(buildCardPrimerEquipo());
-  } else if(vistaActual===4){
-    // Vista multi: mostrar solo equipos seleccionados
-    const lista=EQUIPOS.filter(e=>eqsMultiSel.has(e));
+  } else if(vistaActual==='2col' || vistaActual==='3col'){
+    // Vista multi: mostrar equipos seleccionados (o todos si eqF=TODOS)
+    const lista = eqF==='TODOS' ? EQUIPOS.filter(e=>eqsMultiSel.has(e)) : [eqF];
     lista.forEach(eq=>grid.appendChild(buildCard(eq)));
   } else {
     const lista=eqF==='TODOS'?EQUIPOS:[eqF];
