@@ -4393,29 +4393,25 @@ function devolverADisponibles(nombre, eq, zona){
   if(disp && !disp.includes(nombre)) disp.push(nombre);
 }
 
-function onChipDoubleTap(c){
-  const nombre   = c.dataset.nombre;
-  const eq       = c.dataset.eq;
-  const zona     = c.dataset.zona || 'campo';
+// dispararDobleTap recibe strings (no elemento DOM) — seguro tras re-render
+function dispararDobleTap(nombre, eq, zona){
   const eqPropio = origen[nombre] || eq;
 
-  // ── Regla: no se puede eliminar de disponibles del propio equipo ──
+  // ── No se puede quitar de disponibles del propio equipo ──
   if(zona === 'disponibles' && eq === eqPropio){
     toast('⚠️ ' + nombre + ' siempre debe estar en disponibles de su equipo');
     return;
   }
 
-  // ── Construir mensaje claro ──
+  // ── Mensaje ──
   let msg;
   if(zona === 'campo'){
     msg = `Quitar a ${nombre} del campo → disponibles${eq !== eqPropio ? ' de ' + eqPropio : ''}`;
   } else if(zona === 'banquillo'){
     msg = `Quitar a ${nombre} del banquillo → disponibles${eq !== eqPropio ? ' de ' + eqPropio : ''}`;
   } else if(zona === 'disponibles'){
-    // disponibles de otro equipo (prestado) → volver al propio
     msg = `Devolver a ${nombre} a disponibles de ${eqPropio}`;
   } else {
-    // lesionados, otros, promovidos, extra
     const zonaLabel = {lesionados:'lesiones', promovidos_1er:'promoción', otros:'otros', extra:'extra'}[zona] || zona;
     msg = `Quitar a ${nombre} de ${zonaLabel} → disponibles${eq !== eqPropio ? ' de ' + eqPropio : ''}`;
   }
@@ -4428,25 +4424,9 @@ function onChipDoubleTap(c){
   }, 'Eliminar');
 }
 
-function registerDoubleTap(c){
-  // Mouse: dblclick nativo
-  c.addEventListener('dblclick', e => { e.preventDefault(); e.stopPropagation(); onChipDoubleTap(c); });
+// Alias por compatibilidad (ya no se usa pero por si acaso)
+function onChipDoubleTap(c){ dispararDobleTap(c.dataset.nombre, c.dataset.eq, c.dataset.zona||'campo'); }
 
-  // Touch: dos toques rápidos (≤ 350ms)
-  c.addEventListener('touchend', e => {
-    const count = (_tapCount.get(c) || 0) + 1;
-    _tapCount.set(c, count);
-    if(count === 1){
-      const t = setTimeout(()=>{ _tapCount.set(c, 0); }, 350);
-      _tapTimer.set(c, t);
-    } else {
-      clearTimeout(_tapTimer.get(c));
-      _tapCount.set(c, 0);
-      e.preventDefault(); e.stopPropagation();
-      onChipDoubleTap(c);
-    }
-  }, { passive: false });
-}
 
 // ── DRAG UNIFICADO — cualquier chip puede ir a cualquier zona o campo ──
 // El drag arranca tras 180ms para dejar hueco al doble clic
@@ -4455,23 +4435,26 @@ const _lastClick = new WeakMap();  // chip → timestamp del último click
 
 function initDrag(){
   document.querySelectorAll('.cf,.cz').forEach(c=>{
-    // Touch: arranque inmediato pero cancelable
+    // Capturar datos del chip AHORA (el elemento puede re-renderizarse)
+    const nombre = c.dataset.nombre;
+    const eq     = c.dataset.eq;
+    const zona   = c.dataset.zona || 'campo';
+
+    // Touch
     c.addEventListener('touchstart', e=>{
       e.preventDefault();
       const ev = e.touches[0];
       const now = Date.now();
       const last = _lastClick.get(c) || 0;
       if(now - last < 350){
-        // Doble tap — cancelar drag pendiente y disparar acción
         clearTimeout(_dragDelay.get(c));
         _lastClick.set(c, 0);
-        onChipDoubleTap(c);
+        dispararDobleTap(nombre, eq, zona);
         return;
       }
       _lastClick.set(c, now);
-      // Guardar posición inicial para el delay
-      const saved = {x: ev.clientX, y: ev.clientY};
-      const t = setTimeout(()=>{ startChip(c, saved); }, 160);
+      const saved = {clientX: ev.clientX, clientY: ev.clientY};
+      const t = setTimeout(()=>{ startChip(c, saved); }, 180);
       _dragDelay.set(c, t);
     },{passive:false});
 
@@ -4484,13 +4467,20 @@ function initDrag(){
       if(now - last < 350){
         clearTimeout(_dragDelay.get(c));
         _lastClick.set(c, 0);
-        onChipDoubleTap(c);
+        dispararDobleTap(nombre, eq, zona);
         return;
       }
       _lastClick.set(c, now);
       const saved = {clientX: e.clientX, clientY: e.clientY};
-      const t = setTimeout(()=>{ startChip(c, saved); }, 160);
+      const t = setTimeout(()=>{ startChip(c, saved); }, 180);
       _dragDelay.set(c, t);
+    });
+
+    // dblclick (ratón) — más fiable en escritorio
+    c.addEventListener('dblclick', e=>{
+      e.preventDefault(); e.stopPropagation();
+      clearTimeout(_dragDelay.get(c));
+      dispararDobleTap(nombre, eq, zona);
     });
   });
 }
