@@ -973,7 +973,7 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 .cards-grid.view-2 .snap-btn{padding:3px 5px;}
 /* chips en campo: más pequeños pero legibles */
 .cards-grid.view-2 .pof{max-width:46%;}
-.cards-grid.view-2 .pof .chip{font-size:clamp(8px,2.2vw,12px);padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.cards-grid.view-2 .pof .chip{font-size:clamp(7px,1.8vw,10px);padding:2px 4px;max-width:100%;}
 .cards-grid.view-2 .zona-disponibles{padding:4px 8px;min-height:28px;}
 .cards-grid.view-2 .zona-add{display:none;}
 .cards-grid.view-2 .cols-estado .col{padding:3px 5px;}
@@ -990,13 +990,9 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 /* chips en campo: pequeños pero con separación para no solaparse */
 .cards-grid.view-4 .pof{max-width:44%;min-width:0;}
 .cards-grid.view-4 .pof .chip{
-  font-size:clamp(7px,1.8vw,10px);
-  padding:2px 3px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  font-size:clamp(6px,1.5vw,9px);
+  padding:1px 3px;
   max-width:100%;
-  line-height:1.2;
 }
 /* ocultar zonas secundarias para dar aire */
 .cards-grid.view-4 .zona-disponibles{padding:3px 6px;min-height:24px;}
@@ -1021,7 +1017,10 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 .campo-players{position:absolute;inset:0;pointer-events:none;}
 .pof{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;max-width:30%;transition:top .25s ease,left .25s ease;}
 .pof.no-anim{transition:none;}
-.pof .chip{font-size:clamp(9px,2.2vw,13px);font-weight:600;padding:3px 7px;width:100%;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.5);letter-spacing:.2px;}
+.pof .chip{font-size:clamp(8px,2vw,11px);font-weight:600;padding:2px 5px;width:100%;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.5);letter-spacing:.1px;}
+.chip.chip-2l{display:flex;flex-direction:column;align-items:center;gap:0;line-height:1.15;white-space:normal;padding:2px 4px;}
+.chip-n1{font-size:.85em;font-weight:500;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.chip-n2{font-size:1em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 
 /* CHIP */
 .chip{display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:3px 7px;cursor:grab;user-select:none;touch-action:none;white-space:nowrap;-webkit-user-select:none;transition:box-shadow .1s,opacity .1s,transform .1s;}
@@ -3807,14 +3806,27 @@ function buildCard(eq){
   return card;
 }
 
+// Formatea nombre en 2 líneas para chips de campo (cf)
+// Nombre propio arriba, apellido(s) abajo, mismo ancho
+function chipHTML(nombre, isCampo){
+  if(!isCampo) return nombre; // zona: texto simple
+  const partes = nombre.trim().split(/\s+/);
+  if(partes.length < 2) return `<span class="chip-n1">${nombre}</span>`;
+  const n1 = partes[0];
+  const n2 = partes.slice(1).join(' ');
+  return `<span class="chip-n1">${n1}</span><span class="chip-n2">${n2}</span>`;
+}
+
 function chip(nombre,eq,zona,color,type){
   const eqO=origen[nombre];
   const prueba   = eqO === 'PRUEBA';
   const prestado = !prueba && eqO && eqO!==eq;
   let cf = prueba ? 'c-prueba' : (prestado ? (EQ_COLORS[eqO]||'c-prestado') : color);
   const multi = esMulti(nombre);
-  const c=mk('div',`chip ${cf} ${multi?'c-multi':''} ${type}`);
-  c.textContent=nombre; c.dataset.eq=eq; c.dataset.zona=zona; c.dataset.nombre=nombre;
+  const isCampo = type === 'cf';
+  const c=mk('div',`chip ${cf} ${multi?'c-multi':''} ${type}${isCampo?' chip-2l':''}`);
+  c.innerHTML=chipHTML(nombre, isCampo);
+  c.dataset.eq=eq; c.dataset.zona=zona; c.dataset.nombre=nombre;
   if(prueba) c.title='Jugador a prueba';
   else if(multi){
     const eqs = eqsDeNombre(dia,nombre).join(', ');
@@ -4077,12 +4089,56 @@ function updateUYLCount(){
 // ══════════════════════════════════════════════════
 // DRAG
 // ══════════════════════════════════════════════════
+// ── Doble tap/click para eliminar chip ──
+const _tapTimer = new WeakMap();   // chip → timeout id
+const _tapCount = new WeakMap();   // chip → nº de taps
+
+function onChipDoubleTap(c){
+  const nombre = c.dataset.nombre;
+  const eq     = c.dataset.eq;
+  const zona   = c.dataset.zona || 'campo';
+  showAlert(`¿Eliminar a ${nombre} de ${zona === 'campo' ? 'el campo' : zona}?`, ()=>{
+    const arr = data[dia][eq][zona];
+    if(arr){
+      const i = arr.indexOf(nombre);
+      if(i >= 0) arr.splice(i, 1);
+    }
+    // Limpiar posición guardada si era del campo
+    if(zona === 'campo') delete pos[key(dia, eq, nombre)];
+    borrarMultiEq(dia, nombre, eq);
+    autoGuardar();
+    render();
+    toast('🗑️ ' + nombre + ' eliminado');
+  });
+}
+
+function registerDoubleTap(c){
+  // Mouse: dblclick nativo
+  c.addEventListener('dblclick', e => { e.preventDefault(); e.stopPropagation(); onChipDoubleTap(c); });
+
+  // Touch: dos toques rápidos (≤ 350ms)
+  c.addEventListener('touchend', e => {
+    const count = (_tapCount.get(c) || 0) + 1;
+    _tapCount.set(c, count);
+    if(count === 1){
+      const t = setTimeout(()=>{ _tapCount.set(c, 0); }, 350);
+      _tapTimer.set(c, t);
+    } else {
+      clearTimeout(_tapTimer.get(c));
+      _tapCount.set(c, 0);
+      e.preventDefault(); e.stopPropagation();
+      onChipDoubleTap(c);
+    }
+  }, { passive: false });
+}
+
 // ── DRAG UNIFICADO — cualquier chip puede ir a cualquier zona o campo ──
 function initDrag(){
   // Todos los chips usan el mismo handler universal
   document.querySelectorAll('.cf,.cz').forEach(c=>{
     c.addEventListener('touchstart',e=>{e.preventDefault();startChip(c,e.touches[0]);},{passive:false});
     c.addEventListener('mousedown', e=>{if(e.button)return;e.preventDefault();startChip(c,e);});
+    registerDoubleTap(c);
   });
 }
 
