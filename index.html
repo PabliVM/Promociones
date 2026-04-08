@@ -795,6 +795,8 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 #copy-modal-footer{display:flex;gap:10px;margin-top:20px;}
 #copy-todo-btn{flex:1;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
 #copy-ok-btn{flex:2;padding:12px;border-radius:12px;border:none;background:#C8A800;color:#000;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;cursor:pointer;}
+#copy-semana-btn:hover{background:rgba(255,255,255,.1);color:#fff;}
+#copy-semana-btn.has-sel{border-color:#C8A800;color:#C8A800;background:rgba(200,168,0,.1);}
 .copy-btn{padding:3px 9px;border-radius:14px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);font-size:10px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:all .15s;white-space:nowrap;}
 .copy-btn:hover{background:var(--rm-gold);color:#000;border-color:var(--rm-gold);}
 .copy-btn.copy-active{background:var(--verde);color:var(--verde-dk);border-color:var(--verde-bd);}
@@ -1589,6 +1591,13 @@ td.td-vacio{color:rgba(255,255,255,.12);}
     <div id="copy-dia-sel" style="margin-top:12px;">
       <div class="copy-section-lbl">Día destino</div>
       <div id="copy-dias-btns"></div>
+    </div>
+    <div id="copy-semana-sel" style="display:none;margin-top:12px;">
+      <div class="copy-section-lbl">Semana destino</div>
+      <button id="copy-semana-btn" onclick="abrirCalCopia()" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:rgba(255,255,255,.7);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;transition:all .15s;">
+        <span id="copy-semana-lbl">Seleccionar semana…</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      </button>
     </div>
     <div id="copy-modal-footer">
       <button id="copy-todo-btn" onclick="copiarTodo()">Copiar todo</button>
@@ -2713,6 +2722,7 @@ function buildCardPrimerEquipo(){
       <circle cx="50" cy="59" r="8.5" fill="none" stroke="rgba(255,255,255,.35)" stroke-width=".7"/>
     </svg>
 
+    <img class="campo-shield" style="mix-blend-mode:screen;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) translateY(-8.5%);width:44%;opacity:0.22;pointer-events:none;z-index:1;" src="https://raw.githubusercontent.com/pepamaster/campograma/main/rm.png" alt="RM"/>
     <div class="campo-players"></div>`;
 
   // Jugadores del primer equipo este día
@@ -3534,8 +3544,13 @@ function abrirCal(){
   document.getElementById('cal-overlay').classList.add('open');
 }
 
+let _calModoCopia = false;
 function cerrarCal(){
   document.getElementById('cal-overlay').classList.remove('open');
+  if(_calModoCopia){
+    _calModoCopia = false;
+    document.getElementById('copy-modal-overlay').classList.add('open');
+  }
 }
 
 function renderCal(){
@@ -3606,12 +3621,21 @@ function renderCal(){
 
 function resetCal(){
   _calLunesSel = null;
-  FECHAS = calcFechasSemana(new Date()); // volver a semana actual
+  if(!_calModoCopia) FECHAS = calcFechasSemana(new Date());
   renderCal();
 }
 
 function aplicarSemana(){
-  if(!_calLunesSel){ toast('Selecciona un lunes'); return; }
+  if(!_calLunesSel){ toast('Selecciona un día'); return; }
+  if(_calModoCopia){
+    // Modo copia: guardar semana destino y volver al modal
+    _copySemanaDestLunes = new Date(_calLunesSel);
+    _calModoCopia = false;
+    cerrarCal();
+    actualizarLblSemana();
+    document.getElementById('copy-modal-overlay').classList.add('open');
+    return;
+  }
   FECHAS = calcFechasSemana(_calLunesSel);
   autoGuardar();
   renderDias();
@@ -4629,6 +4653,7 @@ function abrirCopiarModal(){
   _copyTipo='dia';
   _copyDiasDest=new Set();
   _copyEqs=new Set(EQUIPOS);
+  _copySemanaDestLunes=null;
   // Equipos
   const checksEl=document.getElementById('copy-eq-checks');
   checksEl.innerHTML='';
@@ -4649,11 +4674,38 @@ function cerrarCopiarModal(){
   document.getElementById('copy-modal-overlay').classList.remove('open');
 }
 
+// Lunes de la semana destino para la copia semana completa
+let _copySemanaDestLunes = null;
+
 function setCopyTipo(t){
   _copyTipo=t;
   document.getElementById('ctype-dia').classList.toggle('active',t==='dia');
   document.getElementById('ctype-semana').classList.toggle('active',t==='semana');
   document.getElementById('copy-dia-sel').style.display=t==='dia'?'block':'none';
+  document.getElementById('copy-semana-sel').style.display=t==='semana'?'block':'none';
+  if(t==='semana') actualizarLblSemana();
+}
+
+function actualizarLblSemana(){
+  const btn = document.getElementById('copy-semana-btn');
+  const lbl = document.getElementById('copy-semana-lbl');
+  if(!_copySemanaDestLunes){
+    lbl.textContent = 'Seleccionar semana destino…';
+    btn.classList.remove('has-sel');
+  } else {
+    const fechas = calcFechasSemana(_copySemanaDestLunes);
+    lbl.textContent = 'Semana del ' + fechas['LUNES'] + ' al ' + fechas['DOMINGO'];
+    btn.classList.add('has-sel');
+  }
+}
+
+// Abrir calendario en modo copia de semana
+function abrirCalCopia(){
+  _calModoCopia = true;
+  _calLunesSel = _copySemanaDestLunes || null;
+  _calFecha = _copySemanaDestLunes ? new Date(_copySemanaDestLunes) : new Date();
+  renderCal();
+  document.getElementById('cal-overlay').classList.add('open');
 }
 
 function toggleCopyEq(eq,checked){
@@ -4698,8 +4750,19 @@ function ejecutarCopia(){
   const eqs=[..._copyEqs];
   if(!eqs.length){toast('Selecciona al menos un equipo');return;}
   if(_copyTipo==='semana'){
-    DIAS.filter(d=>d!==dia).forEach(d=>copyDiaBase(dia,d,eqs));
-    toast('Copiado a toda la semana');
+    if(!_copySemanaDestLunes){ toast('⚠️ Selecciona una semana destino'); return; }
+    // Calcular fechas de la semana destino y copiar día a día
+    const fechasDest = calcFechasSemana(_copySemanaDestLunes);
+    // Verificar que no es la misma semana
+    if(fechasDest['LUNES'] === FECHAS['LUNES']){ toast('⚠️ La semana destino es la misma que la actual'); return; }
+    // Necesitamos que los datos de esa semana existan — usamos los nombres de días como claves
+    DIAS.forEach((d, i)=>{
+      // Copiar el día actual a cada día de la semana destino
+      // Como data usa nombres de días (LUNES, MARTES…) no fechas, copiamos entre mismos días
+      copyDiaBase(dia, d, eqs);
+    });
+    const fechas = calcFechasSemana(_copySemanaDestLunes);
+    toast('Copiado a semana ' + fechas['LUNES'] + ' – ' + fechas['DOMINGO']);
   } else {
     if(!_copyDiasDest.size){toast('Selecciona al menos un día');return;}
     _copyDiasDest.forEach(d=>copyDiaBase(dia,d,eqs));
