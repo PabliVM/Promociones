@@ -973,6 +973,29 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 .col .zona-add-input{font-size:10px;padding:3px 22px 3px 6px;}
 .col .ac-item{font-size:10px;padding:4px 7px;}
 
+/* VIEW BAR */
+#view-bar{
+  display:flex;gap:6px;justify-content:flex-end;
+  padding:6px 10px 2px;
+  background:#060f1e;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.view-btn{
+  width:34px;height:34px;border-radius:8px;
+  border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.04);
+  color:rgba(255,255,255,.4);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.view-btn svg{stroke:currentColor;}
+.view-btn.active{
+  background:rgba(200,168,0,.15);
+  border-color:rgba(200,168,0,.4);
+  color:#C8A800;
+}
+.view-btn:active{background:rgba(200,168,0,.2);}
+
 /* GRID */
 .cards-grid{padding:10px;display:grid;grid-template-columns:1fr;gap:10px;}
 .cards-grid.view-1{grid-template-columns:1fr;}
@@ -3679,13 +3702,6 @@ function buildCard(eq){
   resetBtn.onclick=(e)=>{ e.stopPropagation(); abrirResetModal(eq); };
   right.appendChild(resetBtn);
 
-  const resetBtn=mk('button','snap-btn');
-  resetBtn.innerHTML='↺';
-  resetBtn.title='Resetear equipo';
-  resetBtn.style.cssText='padding:3px 8px;font-size:13px;';
-  resetBtn.onclick=(e)=>{e.stopPropagation();abrirResetModal(eq);};
-  right.appendChild(resetBtn);
-
   const camBtn=mk('button','snap-btn');
   camBtn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>';
   camBtn.title='Capturar imagen del campo';
@@ -4316,40 +4332,39 @@ const _tapTimer = new WeakMap();   // chip → timeout id
 const _tapCount = new WeakMap();   // chip → nº de taps
 
 // Devuelve un jugador a disponibles de su equipo propio desde eq/zona
-function devolverAPropio(nombre, eq, zona){
+// Devuelve un jugador a disponibles de su equipo propio desde cualquier zona/equipo
+function devolverADisponibles(nombre, eq, zona){
   const eqPropio = origen[nombre] || eq;
 
-  // Quitar de la zona actual en el equipo actual
-  ZONAS_ACTIVAS.forEach(z => {
-    const a = data[dia][eq]?.[z];
-    if(!a) return;
-    const i = a.indexOf(nombre);
-    if(i >= 0) a.splice(i, 1);
-  });
-  delete pos[key(dia, eq, nombre)];
+  // 1. Quitar de la zona específica donde está
+  const arr = data[dia][eq]?.[zona];
+  if(arr){
+    const i = arr.indexOf(nombre);
+    if(i >= 0) arr.splice(i, 1);
+  }
+  if(zona === 'campo') delete pos[key(dia, eq, nombre)];
 
-  // Si además estaba en otro equipo como multi, quitar de ahí también
-  // (se limpia todo excepto el equipo propio)
-  EQUIPOS.forEach(e => {
-    if(e === eqPropio) return;
+  // 2. Si era de otro equipo (prestado), quitar de TODAS sus zonas activas
+  //    en ese equipo prestado para no dejar rastro
+  if(eq !== eqPropio){
     ZONAS_ACTIVAS.forEach(z => {
-      const a = data[dia][e]?.[z];
+      const a = data[dia][eq]?.[z];
       if(!a) return;
       const i = a.indexOf(nombre);
       if(i >= 0) a.splice(i, 1);
     });
-    delete pos[key(dia, e, nombre)];
-  });
+    delete pos[key(dia, eq, nombre)];
+  }
 
-  // Quitar de promovidos_1er en el equipo propio
+  // 3. Quitar de promovidos_1er en su equipo propio (si fue promovido)
   const prom = data[dia][eqPropio]?.promovidos_1er;
-  if(prom){ const pi=prom.indexOf(nombre); if(pi>=0) prom.splice(pi,1); }
+  if(prom){ const pi = prom.indexOf(nombre); if(pi >= 0) prom.splice(pi, 1); }
   if(promInfo[dia]?.[eqPropio]) delete promInfo[dia][eqPropio][nombre];
 
-  // Limpiar multiEq completamente
-  if(multiEq[dia]?.[nombre]) delete multiEq[dia][nombre];
+  // 4. Limpiar multiEq
+  borrarMultiEq(dia, nombre, eq);
 
-  // Volver a disponibles del equipo propio
+  // 5. Añadir a disponibles de su equipo propio (si no está ya)
   const disp = data[dia][eqPropio]?.disponibles;
   if(disp && !disp.includes(nombre)) disp.push(nombre);
 }
@@ -4360,45 +4375,33 @@ function onChipDoubleTap(c){
   const zona     = c.dataset.zona || 'campo';
   const eqPropio = origen[nombre] || eq;
 
-  // ── Disponibles del propio equipo: no se puede quitar ──
+  // ── Regla: no se puede eliminar de disponibles del propio equipo ──
   if(zona === 'disponibles' && eq === eqPropio){
     toast('⚠️ ' + nombre + ' siempre debe estar en disponibles de su equipo');
     return;
   }
 
-  // ── Está en dos equipos a la vez (multi) ──
-  const eqsActivos = eqsDeNombre(dia, nombre);
-  const esMultiHoy = eqsActivos.length > 1;
-
-  if(esMultiHoy){
-    // Construir mensaje indicando en qué equipos está
-    const lista = eqsActivos.join(' y ');
-    showAlert(
-      `${nombre} está en ${lista}.
-Se quitará de todos y volverá a disponibles de ${eqPropio}.`,
-      ()=>{
-        devolverAPropio(nombre, eq, zona);
-        autoGuardar(); render();
-        toast('↩️ ' + nombre + ' devuelto a ' + eqPropio);
-      }, 'Devolver'
-    );
-    return;
+  // ── Construir mensaje claro ──
+  let msg;
+  if(zona === 'campo'){
+    msg = `Quitar a ${nombre} del campo → disponibles${eq !== eqPropio ? ' de ' + eqPropio : ''}`;
+  } else if(zona === 'banquillo'){
+    msg = `Quitar a ${nombre} del banquillo → disponibles${eq !== eqPropio ? ' de ' + eqPropio : ''}`;
+  } else if(zona === 'disponibles'){
+    // disponibles de otro equipo (prestado) → volver al propio
+    msg = `Devolver a ${nombre} a disponibles de ${eqPropio}`;
+  } else {
+    // lesionados, otros, promovidos, extra
+    const zonaLabel = {lesionados:'lesiones', promovidos_1er:'promoción', otros:'otros', extra:'extra'}[zona] || zona;
+    msg = `Quitar a ${nombre} de ${zonaLabel} → disponibles${eq !== eqPropio ? ' de ' + eqPropio : ''}`;
   }
 
-  // ── Caso normal ──
-  const lugar = zona === 'campo' ? 'el campo'
-              : zona === 'banquillo' ? 'el banquillo'
-              : zona;
-  const destino = eq === eqPropio ? 'disponibles' : `disponibles de ${eqPropio}`;
-
-  showAlert(
-    `Quitar a ${nombre} de ${lugar} → ${destino}`,
-    ()=>{
-      devolverAPropio(nombre, eq, zona);
-      autoGuardar(); render();
-      toast('↩️ ' + nombre + ' → disponibles ' + eqPropio);
-    }, 'Devolver'
-  );
+  showAlert(msg, ()=>{
+    devolverADisponibles(nombre, eq, zona);
+    autoGuardar();
+    render();
+    toast('↩️ ' + nombre + ' → disponibles ' + eqPropio);
+  }, 'Eliminar');
 }
 
 function registerDoubleTap(c){
@@ -4821,82 +4824,6 @@ function renderReg(){
 // ══════════════════════════════════════════════════
 // UTILS
 // ══════════════════════════════════════════════════
-// ══════════════════════════════════════════════════
-// RESET EQUIPO
-// ══════════════════════════════════════════════════
-let _resetEq = null;
-
-function abrirResetModal(eq){
-  _resetEq = eq;
-  document.getElementById('reset-modal-title').textContent = '⚠️ Resetear ' + eq;
-  const campoN = (data[dia][eq]?.campo||[]).length;
-  const totalN = ['campo','banquillo','lesionados','otros','promovidos_1er','extra']
-    .reduce((s,z)=>s+(data[dia][eq]?.[z]||[]).length, 0);
-  document.getElementById('reset-modal-sub').textContent =
-    `Campo: ${campoN} jugadores · Total activos: ${totalN}`;
-  document.getElementById('reset-overlay').classList.add('open');
-}
-
-function cerrarResetModal(e){
-  if(!e || e.target===document.getElementById('reset-overlay'))
-    document.getElementById('reset-overlay').classList.remove('open');
-}
-
-function ejecutarReset(tipo){
-  if(!_resetEq) return;
-  const eq = _resetEq;
-  cerrarResetModal();
-
-  if(tipo === 'campo'){
-    // Solo campo → devolver jugadores del campo a disponibles de su equipo
-    const enCampo = [...(data[dia][eq].campo||[])];
-    enCampo.forEach(nombre=>{
-      // Quitar del campo
-      const i = data[dia][eq].campo.indexOf(nombre);
-      if(i>=0) data[dia][eq].campo.splice(i,1);
-      delete pos[key(dia, eq, nombre)];
-      // Devolver a disponibles de su equipo propio
-      const eqPropio = origen[nombre] || eq;
-      const disp = data[dia][eqPropio]?.disponibles;
-      if(disp && !disp.includes(nombre)) disp.push(nombre);
-      // Si era de otro equipo, limpiar multiEq
-      borrarMultiEq(dia, nombre, eq);
-    });
-    toast(`⬜ Campo de ${eq} reseteado (${enCampo.length} jugadores)`);
-  } else {
-    // Reset completo → todas las zonas activas vuelven a disponibles en su equipo propio
-    const zonasReset = ['campo','banquillo','lesionados','otros','extra'];
-    let total = 0;
-    zonasReset.forEach(zona=>{
-      const jugadores = [...(data[dia][eq][zona]||[])];
-      jugadores.forEach(nombre=>{
-        const i = data[dia][eq][zona].indexOf(nombre);
-        if(i>=0) data[dia][eq][zona].splice(i,1);
-        if(zona==='campo') delete pos[key(dia, eq, nombre)];
-        const eqPropio = origen[nombre] || eq;
-        const disp = data[dia][eqPropio]?.disponibles;
-        if(disp && !disp.includes(nombre)) disp.push(nombre);
-        borrarMultiEq(dia, nombre, eq);
-        total++;
-      });
-    });
-    // También limpiar promovidos y promInfo
-    const proms = [...(data[dia][eq].promovidos_1er||[])];
-    proms.forEach(nombre=>{
-      const i = data[dia][eq].promovidos_1er.indexOf(nombre);
-      if(i>=0) data[dia][eq].promovidos_1er.splice(i,1);
-      if(promInfo[dia]?.[eq]) delete promInfo[dia][eq][nombre];
-      const eqPropio = origen[nombre] || eq;
-      const disp = data[dia][eqPropio]?.disponibles;
-      if(disp && !disp.includes(nombre)) disp.push(nombre);
-      total++;
-    });
-    toast(`🔄 ${eq} reseteado (${total} jugadores devueltos)`);
-  }
-
-  autoGuardar();
-  render();
-}
 
 function moveGhost(x,y){const g=document.getElementById('ghost');g.style.left=(x-dOff.x)+'px';g.style.top=(y-dOff.y)+'px';}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
@@ -4986,32 +4913,6 @@ if('serviceWorker' in navigator){
 </nav>
 <input type="file" id="import-file" accept=".json" style="display:none" onchange="cargarFicheroImport(event)">
 
-<!-- ── MODAL RESET EQUIPO ── -->
-<div id="reset-overlay" onclick="cerrarResetModal(event)">
-  <div id="reset-modal">
-    <h3 id="reset-modal-title">⚠️ Resetear equipo</h3>
-    <p id="reset-modal-sub">Elige qué quieres reiniciar</p>
-    <div id="reset-opts">
-      <div class="reset-opt" onclick="ejecutarReset('campo')">
-        <span class="reset-opt-icon">⬜</span>
-        <div class="reset-opt-txt">
-          <div class="reset-opt-title">Solo el campo</div>
-          <div class="reset-opt-sub">Devuelve los jugadores del campo a disponibles. Promociones, lesiones y otros se mantienen.</div>
-        </div>
-        <span class="reset-opt-arrow">›</span>
-      </div>
-      <div class="reset-opt" onclick="ejecutarReset('todo')">
-        <span class="reset-opt-icon" style="color:#ef4444;">🔄</span>
-        <div class="reset-opt-txt">
-          <div class="reset-opt-title" style="color:#ef4444;">Reset completo</div>
-          <div class="reset-opt-sub">Todos los jugadores vuelven a disponibles en su equipo de origen.</div>
-        </div>
-        <span class="reset-opt-arrow">›</span>
-      </div>
-    </div>
-    <button id="reset-cancel" onclick="cerrarResetModal()">Cancelar</button>
-  </div>
-</div>
 </div>
 </body>
 </html>
