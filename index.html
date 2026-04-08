@@ -812,6 +812,12 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 #plant-eq-tabs{display:flex;gap:4px;flex-wrap:wrap;padding:10px 14px 0;}
 .plant-eq-tab{padding:4px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:rgba(255,255,255,.5);font-size:10px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:all .15s;}
 .plant-eq-tab.active{border-color:var(--rm-gold);background:rgba(200,168,0,.15);color:var(--rm-gold);}
+.plant-eq-tab.uyl-tab{border-color:rgba(96,180,255,.4);color:#60b4ff;}
+.plant-eq-tab.uyl-tab.active{border-color:#60b4ff;background:rgba(96,180,255,.15);color:#60b4ff;}
+.plant-uyl-badge{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:8px;background:rgba(96,180,255,.15);border:1px solid rgba(96,180,255,.3);color:#60b4ff;font-size:9px;font-weight:700;letter-spacing:.4px;margin-left:6px;}
+.plant-uyl-origin{font-size:9px;color:rgba(255,255,255,.35);margin-left:4px;font-weight:400;}
+.plant-row.uyl-extra{background:rgba(96,180,255,.07);border-color:rgba(96,180,255,.2);}
+.plant-uyl-info{font-family:'Barlow Condensed',sans-serif;font-size:10px;color:rgba(255,255,255,.35);padding:4px 0 8px;letter-spacing:.2px;}
 #plant-body{padding:12px 14px 16px;}
 #plant-eq-title{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;color:var(--rm-gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
 #plant-add-row{display:flex;gap:6px;margin-bottom:10px;}
@@ -2951,6 +2957,15 @@ function openPlant(){
   document.getElementById('plant-overlay').classList.add('show');
   renderPlantTabs();
   renderPlantBody();
+  actualizarPlantInput();
+}
+function actualizarPlantInput(){
+  const inp = document.getElementById('plant-add-input');
+  if(plantEqActivo==='JA_YOUTH'){
+    inp.placeholder = 'Añadir extra de otro equipo…';
+  } else {
+    inp.placeholder = 'Nombre del jugador…';
+  }
 }
 function closePlant(){
   document.getElementById('plant-overlay').classList.remove('show');
@@ -2961,20 +2976,89 @@ function renderPlantTabs(){
   wrap.innerHTML = '';
   EQUIPOS.forEach(eq=>{
     const btn = mk('button','plant-eq-tab'+(eq===plantEqActivo?' active':''));
-    btn.textContent = eq + ' ('+( plantillas[eq]?.length||0)+')';
-    btn.onclick = ()=>{ plantEqActivo=eq; renderPlantTabs(); renderPlantBody(); };
+    btn.textContent = eq + ' ('+(plantillas[eq]?.length||0)+')';
+    btn.onclick = ()=>{ plantEqActivo=eq; renderPlantTabs(); renderPlantBody(); actualizarPlantInput(); };
     wrap.appendChild(btn);
   });
+  // Pestaña especial JA Youth
+  const uylN = getPlantillaUYL().length;
+  const btnUYL = mk('button','plant-eq-tab uyl-tab'+('JA_YOUTH'===plantEqActivo?' active':''));
+  btnUYL.innerHTML = 'JA Youth <span style="font-size:9px;opacity:.7">('+uylN+')</span>';
+  btnUYL.onclick = ()=>{ plantEqActivo='JA_YOUTH'; renderPlantTabs(); renderPlantBody(); actualizarPlantInput(); };
+  wrap.appendChild(btnUYL);
 }
 
 function renderPlantBody(){
+  const list = document.getElementById('plant-list');
+  list.innerHTML = '';
+  document.getElementById('plant-add-input').value = '';
+
+  if(plantEqActivo === 'JA_YOUTH'){
+    // ── Vista especial JA Youth ──
+    document.getElementById('plant-eq-title').textContent = 'JA Youth League';
+    const plantillaCompleta = getPlantillaUYL();
+    document.getElementById('plant-count').textContent = plantillaCompleta.length + ' jugadores · ' + listaUYL.length + ' extras';
+
+    // Info
+    const info = mk('div','plant-uyl-info');
+    info.textContent = 'Base: todos los JA. Excluidos: '+listaUYLExcl.length+'. Extras de otros equipos: '+listaUYL.length+'.';
+    list.appendChild(info);
+
+    // Jugadores JA base (con opción de excluir/incluir)
+    const jaJugs = Object.keys(origen).filter(n=>origen[n]==='JUVENIL A').sort();
+    jaJugs.forEach((nombre, i)=>{
+      const excluido = listaUYLExcl.includes(nombre);
+      const row = mk('div','plant-row'+(excluido?' plant-row-excluido':''));
+      row.style.cssText = excluido ? 'opacity:.45;' : '';
+      const num = mk('span','plant-num'); num.textContent = excluido ? '✗' : (i+1);
+      const nm  = mk('span','plant-name');
+      nm.innerHTML = nombre + '<span class="plant-uyl-origin">JA</span>';
+      const del = mk('button','plant-del');
+      del.textContent = excluido ? '✓' : '✗';
+      del.title = excluido ? 'Incluir en Youth League' : 'Excluir de Youth League';
+      del.style.color = excluido ? '#4ade80' : 'rgba(239,68,68,.6)';
+      del.onclick = ()=>{
+        const idx = listaUYLExcl.indexOf(nombre);
+        if(idx>=0) listaUYLExcl.splice(idx,1);
+        else listaUYLExcl.push(nombre);
+        renderPlantTabs(); renderPlantBody();
+        autoGuardar();
+      };
+      row.appendChild(num); row.appendChild(nm); row.appendChild(del);
+      list.appendChild(row);
+    });
+
+    // Separador extras
+    const sep = mk('div','plant-uyl-info');
+    sep.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px solid rgba(96,180,255,.2);color:#60b4ff;';
+    sep.textContent = '── Extras de otros equipos ──';
+    list.appendChild(sep);
+
+    // Jugadores extra (de otros equipos)
+    listaUYL.forEach((nombre, i)=>{
+      const eqO = origen[nombre] || '?';
+      const row = mk('div','plant-row uyl-extra');
+      const num = mk('span','plant-num'); num.textContent = (i+1);
+      const nm  = mk('span','plant-name');
+      nm.innerHTML = nombre + '<span class="plant-uyl-origin">'+eqO+'</span>';
+      const del = mk('button','plant-del'); del.textContent = '×';
+      del.title = 'Quitar de JA Youth';
+      del.onclick = ()=>{
+        const idx = listaUYL.indexOf(nombre);
+        if(idx>=0) listaUYL.splice(idx,1);
+        renderPlantTabs(); renderPlantBody();
+        autoGuardar();
+      };
+      row.appendChild(num); row.appendChild(nm); row.appendChild(del);
+      list.appendChild(row);
+    });
+    return;
+  }
+
+  // ── Vista normal de equipo ──
   const jugadores = plantillas[plantEqActivo] || [];
   document.getElementById('plant-eq-title').textContent = plantEqActivo;
   document.getElementById('plant-count').textContent = jugadores.length + ' jugadores';
-  document.getElementById('plant-add-input').value = '';
-
-  const list = document.getElementById('plant-list');
-  list.innerHTML = '';
   jugadores.forEach((nombre, i)=>{
     const row = mk('div','plant-row');
     const num = mk('span','plant-num'); num.textContent = (i+1);
@@ -2991,6 +3075,27 @@ function plantAñadir(){
   const input = document.getElementById('plant-add-input');
   const nombre = input.value.trim().toUpperCase();
   if(!nombre){ input.focus(); return; }
+
+  // ── JA Youth: añadir como extra ──
+  if(plantEqActivo === 'JA_YOUTH'){
+    // Solo jugadores que no sean ya de JA
+    if(origen[nombre] === 'JUVENIL A'){
+      toast('⚠️ '+nombre+' ya es de JA — está incluido en la base');
+      input.value=''; return;
+    }
+    if(listaUYL.includes(nombre)){
+      toast('⚠️ '+nombre+' ya está en JA Youth');
+      input.value=''; return;
+    }
+    listaUYL.push(nombre);
+    input.value=''; input.focus();
+    renderPlantTabs(); renderPlantBody();
+    autoGuardar();
+    toast('✅ '+nombre+' añadido a JA Youth');
+    return;
+  }
+
+  // ── Equipo normal ──
   if(!plantillas[plantEqActivo]) plantillas[plantEqActivo]=[];
   if(plantillas[plantEqActivo].includes(nombre)){
     toast('⚠️ '+nombre+' ya está en '+plantEqActivo);
@@ -2998,21 +3103,16 @@ function plantAñadir(){
   }
   plantillas[plantEqActivo].push(nombre);
   plantillas[plantEqActivo].sort((a,b)=>a.localeCompare(b,'es'));
-  // Actualizar origen
   origen[nombre] = plantEqActivo;
-  // Añadir a disponibles de todos los días
   DIAS.forEach(d=>{
     if(!data[d][plantEqActivo].disponibles.includes(nombre) &&
        !ZONAS.some(z=>data[d][plantEqActivo][z].includes(nombre))){
       data[d][plantEqActivo].disponibles.push(nombre);
     }
   });
-  input.value = '';
-  input.focus();
-  renderPlantTabs();
-  renderPlantBody();
-  autoGuardar();
-  render();  // actualizar campograma inmediatamente
+  input.value=''; input.focus();
+  renderPlantTabs(); renderPlantBody();
+  autoGuardar(); render();
   toast('✅ '+nombre+' añadido a '+plantEqActivo);
 }
 
@@ -4292,6 +4392,7 @@ function cerrarUYL(e){
 // listaUYL     = jugadores EXTRA de otros equipos añadidos manualmente
 // listaUYLExcl = jugadores de JA explícitamente excluidos
 if(!window.listaUYLExcl) window.listaUYLExcl=[];
+var listaUYLExcl = window.listaUYLExcl;
 
 function getPlantillaUYL(){
   // JA base menos excluidos + extras
