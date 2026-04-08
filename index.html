@@ -102,7 +102,9 @@ window.dispatchEvent(new Event('firebase-ready'));
   --border:#e2e8f0;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{background:#07101e;font-family:'Barlow',sans-serif;min-height:100vh;min-height:100dvh;overflow-x:hidden;padding-bottom:calc(60px + env(safe-area-inset-bottom,0px));padding-left:env(safe-area-inset-left,0);padding-right:env(safe-area-inset-right,0);}
+body{background:#0a0f1a;font-family:'Barlow',sans-serif;min-height:100vh;min-height:100dvh;overflow-x:hidden;}
+/* ── Wrapper centrado para escritorio ── */
+#app-wrap{max-width:480px;margin:0 auto;position:relative;background:#07101e;min-height:100vh;min-height:100dvh;box-shadow:0 0 80px rgba(0,0,0,.8);overflow-x:hidden;padding-bottom:calc(60px + env(safe-area-inset-bottom,0px));padding-left:env(safe-area-inset-left,0);padding-right:env(safe-area-inset-right,0);}
 
 /* HEADER */
 /* ══ ENCABEZADO ══ */
@@ -1222,6 +1224,7 @@ td.td-vacio{color:rgba(255,255,255,.12);}
 </style>
 </head>
 <body>
+<div id="app-wrap">
 
 <div id="ghost"></div>
 <div id="alert-overlay">
@@ -4461,5 +4464,6 @@ if('serviceWorker' in navigator){
 
 </nav>
 <input type="file" id="import-file" accept=".json" style="display:none" onchange="cargarFicheroImport(event)">
+</div>
 </body>
 </html>
