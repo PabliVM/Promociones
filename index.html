@@ -118,19 +118,21 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
   padding-right:env(safe-area-inset-right,0);
 }
 
-/* ── Tablet (≥768px): 2 cols, wrapper más ancho ── */
+/* ── Tablet (≥768px): 2 cols fijo, botones vista ocultos ── */
 @media(min-width:768px){
   #app-wrap{ max-width:900px; }
-  .cards-grid:not(.view-2):not(.view-4){ grid-template-columns:repeat(2,1fr)!important; gap:12px; padding:12px; }
+  .cards-grid{ grid-template-columns:repeat(2,1fr)!important; gap:12px; padding:12px; }
   #bottom-nav{ max-width:900px; }
   #season-box,#cfg-tipos-box,#uyl-box,#reg-box,#plant-box,#fb-box{ max-width:600px; }
+  #view-bar{ display:none; }
+  #multi-eq-bar{ display:none!important; }
 }
 
-/* ── Desktop (≥1200px): 3 cols, wrapper ancho total ── */
+/* ── Desktop (≥1200px): 3 cols fijo, botones vista ocultos ── */
 @media(min-width:1200px){
   body{ background:#030910; }
   #app-wrap{ max-width:1400px; box-shadow:none; }
-  .cards-grid:not(.view-2):not(.view-4){ grid-template-columns:repeat(3,1fr)!important; gap:14px; padding:14px; }
+  .cards-grid{ grid-template-columns:repeat(3,1fr)!important; gap:14px; padding:14px; }
   #bottom-nav{ max-width:1400px; }
   #season-box,#cfg-tipos-box,#uyl-box{ max-width:680px; }
 }
