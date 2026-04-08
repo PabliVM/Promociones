@@ -1260,7 +1260,7 @@ td.td-vacio{color:rgba(255,255,255,.12);}
     <div id="alert-msg"></div>
     <div id="alert-btns">
       <button class="alert-btn alert-cancel" onclick="closeAlert()">Cancelar</button>
-      <button class="alert-btn alert-ok" id="alert-ok-btn">Añadir</button>
+      <button class="alert-btn alert-ok" id="alert-ok-btn"></button>
     </div>
   </div>
 </div>
@@ -4109,7 +4109,7 @@ function onChipDoubleTap(c){
     autoGuardar();
     render();
     toast('🗑️ ' + nombre + ' eliminado');
-  });
+  }, 'Eliminar');
 }
 
 function registerDoubleTap(c){
@@ -4496,11 +4496,16 @@ function on(ev,fn,opts){document.addEventListener(ev,fn,opts);}
 function off(ev,fn){document.removeEventListener(ev,fn);}
 
 let alertCb=null;
-function showAlert(msg,onConfirm){
+function showAlert(msg,onConfirm,okLabel='Añadir'){
   document.getElementById('alert-msg').textContent=msg;
+  document.getElementById('alert-ok-btn').textContent=okLabel;
+  // Estilo rojo si es destructivo
+  const okBtn=document.getElementById('alert-ok-btn');
+  if(okLabel==='Eliminar'){ okBtn.style.background='#ef4444'; okBtn.style.borderColor='#ef4444'; }
+  else { okBtn.style.background=''; okBtn.style.borderColor=''; }
   document.getElementById('alert-overlay').classList.add('show');
   alertCb=onConfirm;
-  document.getElementById('alert-ok-btn').onclick=()=>{closeAlert();if(alertCb)alertCb();};
+  okBtn.onclick=()=>{closeAlert();if(alertCb)alertCb();};
 }
 function closeAlert(){
   document.getElementById('alert-overlay').classList.remove('show');
