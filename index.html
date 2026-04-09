@@ -4926,12 +4926,19 @@ function endChip(e){
   // ── Destino: promovidos_1er → preguntar a qué equipo va
   if(toZona==='promovidos_1er'){
     const _nombre=drag.nombre, _fromEq=drag.eq, _fromZona=drag.zona;
-    // Quitar de zona origen primero
-    const arr=data[dia][_fromEq][_fromZona];
-    const i=arr.indexOf(_nombre); if(i>=0) arr.splice(i,1);
+    // Quitar de zona origen (puede ser campo, disponibles, etc.)
+    if(_fromZona==='campo'){
+      // Si viene del campo, quitar pos
+      delete pos[key(dia,_fromEq,_nombre)];
+      if(drag.pof) drag.pof.remove();
+    }
+    const srcArr = data[dia][_fromEq]?.[_fromZona];
+    if(srcArr){ const i=srcArr.indexOf(_nombre); if(i>=0) srcArr.splice(i,1); }
+    // El equipo origen para la promoción es siempre el equipo propio del jugador
+    const _eqPropio = origen[_nombre] || _fromEq;
     drag=null;
-    abrirPromoDestModal(_nombre, _fromEq, (destino)=>{
-      ejecutarPromocion(_nombre, _fromEq, destino);
+    abrirPromoDestModal(_nombre, _eqPropio, (destino)=>{
+      ejecutarPromocion(_nombre, _eqPropio, destino);
     });
     return;
   }
