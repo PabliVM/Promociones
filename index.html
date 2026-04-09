@@ -13,11 +13,10 @@
 <title>Campograma RM</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<!-- Firebase -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
+<!-- Firebase compat — funciona con file:// y en móviles sin servidor -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyA19qehf21kHWkKNN_jVjXQ1dpsuHN7hTE",
   authDomain: "promociones-c76fd.firebaseapp.com",
@@ -28,33 +27,20 @@ const firebaseConfig = {
   measurementId: "G-WFRD7XJMW3"
 };
 
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 window._db = db;
 window._fbReady = true;
-window._firebase = { doc, getDoc, setDoc, deleteDoc, collection, getDocs, serverTimestamp };
-
-// Cargar plantillas desde Firebase al arrancar
-async function cargarPlantillasFirebase(){
-  try{
-    const snap = await getDoc(doc(db,'campograma','plantillas'));
-    if(snap.exists()){
-      const fbData = snap.data();
-      if(fbData.plantillas) window._fbPlantillas = fbData.plantillas;
-      if(fbData.origen)     window._fbOrigen     = fbData.origen;
-      console.log('✓ Plantillas Firebase cargadas');
-    }
-  }catch(e){ console.warn('Firebase plantillas error:',e); }
-}
 
 // Guardar sesión en Firebase
 window.fbGuardarSesion = async function(nombre, payload){
   try{
-    const { doc:d, setDoc:s, serverTimestamp:ts } = window._firebase;
-    await s(d(window._db,'sesiones',nombre), {
-      ...payload,
+    // Limpiar undefined antes de guardar
+    const clean = JSON.parse(JSON.stringify(payload));
+    await db.collection('sesiones').doc(nombre).set({
+      ...clean,
       _nombre: nombre,
-      _ts: ts()
+      _ts: firebase.firestore.FieldValue.serverTimestamp()
     });
     return true;
   }catch(e){ console.error('fbGuardarSesion error:',e); return false; }
@@ -63,17 +49,15 @@ window.fbGuardarSesion = async function(nombre, payload){
 // Cargar sesión desde Firebase
 window.fbCargarSesion = async function(nombre){
   try{
-    const { doc:d, getDoc:g } = window._firebase;
-    const snap = await g(d(window._db,'sesiones',nombre));
-    return snap.exists() ? snap.data() : null;
+    const snap = await db.collection('sesiones').doc(nombre).get();
+    return snap.exists ? snap.data() : null;
   }catch(e){ console.error('fbCargarSesion error:',e); return null; }
 };
 
 // Listar sesiones guardadas
 window.fbListarSesiones = async function(){
   try{
-    const { collection:col, getDocs:gd } = window._firebase;
-    const snap = await gd(col(window._db,'sesiones'));
+    const snap = await db.collection('sesiones').get();
     return snap.docs.map(d=>({id:d.id, ...d.data()}));
   }catch(e){ console.error('fbListarSesiones error:',e); return []; }
 };
@@ -81,14 +65,12 @@ window.fbListarSesiones = async function(){
 // Eliminar sesión
 window.fbEliminarSesion = async function(nombre){
   try{
-    const { doc:d, deleteDoc:del } = window._firebase;
-    await del(d(window._db,'sesiones',nombre));
+    await db.collection('sesiones').doc(nombre).delete();
     return true;
   }catch(e){ console.error('fbEliminarSesion error:',e); return false; }
 };
 
-// Cargar plantillas y señalizar app lista
-await cargarPlantillasFirebase();
+// Señalizar que Firebase está listo
 window.dispatchEvent(new Event('firebase-ready'));
 </script>
 <style>
