@@ -1818,7 +1818,7 @@ let dOff = {x:0,y:0};
 
 const key    = (d,e,n) => d+'|'+e+'|'+n;
 const getPos = (d,e,n,i) => pos[key(d,e,n)] || POS_DEF[i%POS_DEF.length] || [50,50];
-const savePos= (d,e,n,t,l) => pos[key(d,e,n)] = [clamp(t,2,96), clamp(l,2,97)];
+const savePos= (d,e,n,t,l) => pos[key(d,e,n)] = [clamp(t,0,100), clamp(l,0,100)];
 
 // Zona del área (portero) — viewBox 0 0 100 118 — portero a partir de top 85%
 const AREA_Y = 82;  // portero = top > 82% (rombo: 84%, 90%, 96%)
@@ -4825,8 +4825,8 @@ function moveChip(e){
   // Si viene del campo, mover el pof visualmente
   if(drag.esDeCampo && drag.pof && drag.campo){
     const cr=drag.campo.getBoundingClientRect();
-    drag.pof.style.top  =clamp(((ev.clientY-dOff.y-cr.top   )/cr.height)*100,2,96)+'%';
-    drag.pof.style.left =clamp(((ev.clientX-dOff.x-cr.left  )/cr.width )*100,2,97)+'%';
+    drag.pof.style.top  =clamp(((ev.clientY-dOff.y-cr.top   )/cr.height)*100,0,100)+'%';
+    drag.pof.style.left =clamp(((ev.clientX-dOff.x-cr.left  )/cr.width )*100,0,100)+'%';
   }
   // Highlight zona bajo cursor
   document.querySelectorAll('.dz').forEach(z=>z.classList.remove('dz-active'));
@@ -4874,8 +4874,8 @@ function endChip(e){
       const cr=drag.campo.getBoundingClientRect();
       const inside=ev.clientX>=cr.left&&ev.clientX<=cr.right&&ev.clientY>=cr.top&&ev.clientY<=cr.bottom;
       if(inside){
-        const rawT=clamp(((ev.clientY-dOff.y-cr.top   )/cr.height)*100,2,96);
-        const rawL=clamp(((ev.clientX-dOff.x-cr.left  )/cr.width )*100,2,97);
+        const rawT=clamp(((ev.clientY-dOff.y-cr.top   )/cr.height)*100,0,100);
+        const rawL=clamp(((ev.clientX-dOff.x-cr.left  )/cr.width )*100,0,100);
         const [snapT,snapL]=snapToGrid(drag.eq,drag.nombre,rawT,rawL);
         savePos(dia,drag.eq,drag.nombre,snapT,snapL);
         drag.pof.style.top=snapT+'%'; drag.pof.style.left=snapL+'%';
@@ -4897,8 +4897,8 @@ function endChip(e){
   // ── Destino: campo
   if(toZona==='campo'){
     const cr=dz.getBoundingClientRect();
-    const rawT=clamp(((ev.clientY-cr.top )/cr.height)*100,2,96);
-    const rawL=clamp(((ev.clientX-cr.left)/cr.width )*100,2,97);
+    const rawT=clamp(((ev.clientY-cr.top )/cr.height)*100,0,100);
+    const rawL=clamp(((ev.clientX-cr.left)/cr.width )*100,0,100);
     const [snapT,snapL]=snapToGrid(toEq,drag.nombre,rawT,rawL);
     savePos(dia,toEq,drag.nombre,snapT,snapL);
 
@@ -5295,6 +5295,10 @@ if('serviceWorker' in navigator){
 </div>
 
 <nav id="bottom-nav">
+  <button class="bnav-btn" onclick="abrirFbPanel()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15a4 4 0 004 4h9a5 5 0 10-4.5-8.5A5 5 0 003 15z"/></svg>
+    <span>Nube</span>
+  </button>
   <button class="bnav-btn" onclick="abrirCopiarModal()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
     <span>Copiar</span>
@@ -5319,3 +5323,4 @@ if('serviceWorker' in navigator){
 </div>
 </body>
 </html>
+
