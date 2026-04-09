@@ -1039,28 +1039,6 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 /* .card-hdr-count[title]::after removed */
 .snap-btn{padding:3px 9px;border-radius:20px;border:1px solid rgba(200,168,0,.35);background:rgba(200,168,0,.08);color:var(--rm-gold);font-size:9px;font-weight:700;font-family:'Barlow Condensed',sans-serif;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:all .15s;}
 .snap-btn:hover{background:var(--rm-gold);color:#000;}
-/* Modal opciones foto/impresión */
-#print-modal-overlay{position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,.7);display:none;align-items:flex-end;justify-content:center;}
-#print-modal-overlay.open{display:flex;}
-#print-modal{background:#0f1a2e;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));width:100%;max-width:480px;border-top:1px solid rgba(255,255,255,.1);}
-#print-modal h3{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;color:#fff;margin:0 0 16px;}
-.print-opt-btn{width:100%;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;margin-bottom:10px;transition:all .15s;}
-.print-opt-btn:active{background:rgba(255,255,255,.12);}
-.print-opt-icon{font-size:22px;}
-.print-opt-desc{font-size:11px;color:rgba(255,255,255,.4);font-weight:400;margin-top:2px;}
-#print-cancel{width:100%;padding:13px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.5);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;}
-@media print{
-  body > *:not(#print-area){display:none!important;}
-  #print-area{display:block!important;font-family:'Barlow Condensed',Helvetica,sans-serif;}
-  #print-area h1{font-size:20px;margin:0 0 4px;}
-  #print-area h2{font-size:14px;color:#555;margin:0 0 16px;font-weight:400;}
-  #print-area .print-tabla{width:100%;border-collapse:collapse;}
-  #print-area .print-tabla th{background:#003087;color:#fff;padding:8px 10px;text-align:left;font-size:13px;}
-  #print-area .print-tabla td{padding:7px 10px;border-bottom:1px solid #eee;font-size:13px;}
-  #print-area .print-tabla tr:nth-child(even) td{background:#f8f8f8;}
-  #print-area .print-campo{max-width:400px;margin:16px auto;}
-  #print-area .print-campo img{width:100%;}
-}
 .reset-btn{padding:3px 7px;border-radius:20px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);color:#f87171;font-size:9px;font-weight:700;font-family:'Barlow Condensed',sans-serif;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:all .15s;}
 .reset-btn:hover{background:#ef4444;color:#fff;border-color:#ef4444;}
 /* ── Modal Reset ── */
@@ -2151,25 +2129,6 @@ function capturarCampo(eq, card){
 
     // Campo capturado
     ctx.drawImage(fieldCanvas, 0, HEADER_H, W, FIELD_H);
-
-    // Dibujar escudo sobre el campo (centrado, igual que en la visual)
-    try{
-      const shieldImg = new Image();
-      shieldImg.crossOrigin = 'anonymous';
-      // Usar el mismo src del escudo en el campo
-      const shieldSrc = cWrap.querySelector('.campo-shield')?.src || '';
-      if(shieldSrc){
-        await new Promise(res=>{ shieldImg.onload=res; shieldImg.onerror=res; shieldImg.src=shieldSrc; });
-        const sw = W * 0.44;  // 44% del ancho
-        const sh = sw;
-        const sx = (W - sw) / 2;
-        // Centrado verticalmente en el campo, ligeramente arriba (-8.5%)
-        const sy = HEADER_H + (FIELD_H - sh) / 2 - FIELD_H * 0.085;
-        ctx.globalAlpha = 0.22;
-        ctx.drawImage(shieldImg, sx, sy, sw, sh);
-        ctx.globalAlpha = 1;
-      }
-    }catch(e){}
 
     function dibujarColumnas(){
       const colY = HEADER_H + FIELD_H + 8;
@@ -4015,9 +3974,9 @@ function buildCard(eq){
 
   const camBtn=mk('button','snap-btn');
   camBtn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>';
-  camBtn.title='Foto / Imprimir';
+  camBtn.title='Capturar imagen del campo';
   camBtn.style.cssText='padding:4px 6px;display:flex;align-items:center;justify-content:center;';
-  camBtn.onclick=(e)=>{e.stopPropagation();abrirPrintModal(eq,card);};
+  camBtn.onclick=(e)=>{e.stopPropagation();capturarCampo(eq,card);};
   right.appendChild(camBtn);
   hdr.appendChild(right);
   card.appendChild(hdr);
@@ -4464,16 +4423,11 @@ function esDescanso(eq){
 }
 function toggleDescanso(eq){
   if(!modoDescanso[dia]) modoDescanso[dia]={};
-  const activando = !modoDescanso[dia][eq];
-  modoDescanso[dia][eq] = activando;
-
-  if(activando){
-    // Desactivar partido si estaba activo
-    if(modoPartido[dia]?.[eq]) modoPartido[dia][eq]=false;
-    // Mover todos los jugadores del campo a disponibles
-    resetearSoloCampo(eq);
+  modoDescanso[dia][eq] = !modoDescanso[dia][eq];
+  // Si activa descanso, desactivar partido
+  if(modoDescanso[dia][eq] && modoPartido[dia]?.[eq]){
+    modoPartido[dia][eq]=false;
   }
-
   autoGuardar(); renderCards();
 }
 
@@ -4951,22 +4905,11 @@ function endChip(e){
     // Caso especial: campo del Primer Equipo
     if(toEq==='1ER EQUIPO'){
       // Quitar de zona origen
-      if(drag.eq === '1ER EQUIPO'){
-        // Venía de disponibles del Primer Equipo — no hay data que limpiar
-        // Solo quitar de primerEquipoJugadores si estaba en campo
-        if(drag.zona === 'campo'){
-          if(primerEquipoJugadores[dia]){
-            const i=primerEquipoJugadores[dia].indexOf(drag.nombre);
-            if(i>=0) primerEquipoJugadores[dia].splice(i,1);
-          }
-        }
-        // Si venía de disponibles del 1ER EQUIPO no hay nada que limpiar en data
-      } else {
-        // Venía de otro equipo
+      if(drag.eq !== '1ER EQUIPO'){
         const arr=data[dia][drag.eq]?.[drag.zona];
         if(arr){ const i=arr.indexOf(drag.nombre); if(i>=0) arr.splice(i,1); }
       }
-      // Añadir a primerEquipoJugadores (campo)
+      // Añadir a primerEquipoJugadores
       if(!primerEquipoJugadores[dia]) primerEquipoJugadores[dia]=[];
       if(!primerEquipoJugadores[dia].includes(drag.nombre))
         primerEquipoJugadores[dia].push(drag.nombre);
@@ -5022,87 +4965,6 @@ function move(fromEq,fromZona,toEq,toZona,nombre){
 // ══════════════════════════════════════════════════
 let _copyTipo = 'dia'; // 'dia' | 'semana'
 let _copyDiasDest = new Set();
-let _printEq = null;
-let _printCard = null;
-
-function abrirPrintModal(eq, card){
-  _printEq = eq;
-  _printCard = card;
-  document.getElementById('print-modal-title').textContent = (EQ_LABEL[eq]||eq) + ' — ' + dia + ' ' + (FECHAS[dia]||'');
-  document.getElementById('print-modal-overlay').classList.add('open');
-}
-function cerrarPrintModal(){
-  document.getElementById('print-modal-overlay').classList.remove('open');
-}
-
-async function printOpcion(tipo){
-  cerrarPrintModal();
-  const eq = _printEq;
-  const card = _printCard;
-  const d = data[dia][eq];
-  const enCampo = d?.campo || [];
-  const enBanquillo = d?.banquillo || [];
-  const proms = d?.promovidos_1er || [];
-  const lesiones = d?.lesionados || [];
-  const otros = d?.otros || [];
-  const fecha = FECHAS[dia] || '';
-  const eqLabel = EQ_LABEL[eq]||eq;
-  const promoInfo = promInfo[dia]?.[eq]||{};
-  const eqsShort = {'CASTILLA':'CAS','RMC':'RMC','JUVENIL A':'JA','JUVENIL B':'JB','JUVENIL C':'JC','CADETE A':'CA'};
-
-  const area = document.getElementById('print-area');
-
-  // Generar HTML de lista
-  function generarLista(){
-    let html = `<h1>${eqLabel} — ${dia} ${fecha}</h1>`;
-    html += `<h2>Real Madrid Cantera · Campograma</h2>`;
-
-    function tabla(titulo, jugadores, color){
-      if(!jugadores.length) return '';
-      let t = `<p style="font-weight:700;font-size:14px;color:${color};margin:12px 0 4px;">${titulo} (${jugadores.length})</p>`;
-      t += `<table class="print-tabla"><thead><tr><th>#</th><th>Jugador</th><th>Detalle</th></tr></thead><tbody>`;
-      jugadores.forEach((n,i)=>{
-        const dest = promoInfo[n] ? ' → '+(promoInfo[n]==='1ER EQUIPO'?'⭐1ER':(eqsShort[promoInfo[n]]||promoInfo[n])) : '';
-        t += `<tr><td>${i+1}</td><td>${n}</td><td>${dest}</td></tr>`;
-      });
-      t += `</tbody></table>`;
-      return t;
-    }
-    html += tabla('EN CAMPO', enCampo, '#003087');
-    html += tabla('BANQUILLO', enBanquillo, '#f59e0b');
-    html += tabla('PROMOVIDOS', proms, '#7c3aed');
-    html += tabla('LESIONADOS', lesiones, '#dc2626');
-    html += tabla('OTROS', otros, '#6b7280');
-    return html;
-  }
-
-  if(tipo === 'lista'){
-    area.innerHTML = generarLista();
-    area.style.display = 'block';
-    setTimeout(()=>{ window.print(); area.style.display='none'; }, 300);
-
-  } else if(tipo === 'campograma'){
-    capturarCampo(eq, card);
-
-  } else if(tipo === 'ambos'){
-    // Generar foto primero, luego añadir lista e imprimir
-    toast('Generando…');
-    const shieldEl = card?.querySelector('.campo-shield');
-    if(shieldEl) shieldEl.style.visibility='hidden';
-    const cWrap = card?.querySelector('.campo-wrap');
-    if(!cWrap){ toast('❌ Sin campo'); return; }
-    const fieldCanvas = await html2canvas(cWrap,{scale:3,useCORS:true,allowTaint:true,backgroundColor:'#1a6b2a',logging:false});
-    if(shieldEl) shieldEl.style.visibility='';
-    const imgSrc = fieldCanvas.toDataURL('image/png');
-    area.innerHTML = `
-      <h1>${eqLabel} — ${dia} ${fecha}</h1>
-      <h2>Real Madrid Cantera · Campograma</h2>
-      <div class="print-campo"><img src="${imgSrc}" alt="campograma"/></div>
-      ${generarLista()}`;
-    area.style.display = 'block';
-    setTimeout(()=>{ window.print(); area.style.display='none'; }, 500);
-  }
-}
 let _copyDiaSemanaLunes = null; // semana destino para modo día (null = semana actual)
 let _copyEqs = new Set(EQUIPOS);
 
@@ -5439,28 +5301,6 @@ if('serviceWorker' in navigator){
   </div>
 </div>
 
-<!-- Modal opciones impresión/foto -->
-<div id="print-modal-overlay" onclick="if(event.target===this)cerrarPrintModal()">
-  <div id="print-modal">
-    <h3 id="print-modal-title">Opciones</h3>
-    <button class="print-opt-btn" onclick="printOpcion('campograma')">
-      <span class="print-opt-icon">📋</span>
-      <div><div>Campograma (foto)</div><div class="print-opt-desc">Imagen del campo con jugadores</div></div>
-    </button>
-    <button class="print-opt-btn" onclick="printOpcion('lista')">
-      <span class="print-opt-icon">📄</span>
-      <div><div>Lista de jugadores</div><div class="print-opt-desc">Tabla imprimible con todos los jugadores</div></div>
-    </button>
-    <button class="print-opt-btn" onclick="printOpcion('ambos')">
-      <span class="print-opt-icon">🗂️</span>
-      <div><div>Campo + Lista</div><div class="print-opt-desc">Campograma y lista juntos</div></div>
-    </button>
-    <button id="print-cancel" onclick="cerrarPrintModal()">Cancelar</button>
-  </div>
-</div>
-<!-- Área de impresión oculta -->
-<div id="print-area" style="display:none;"></div>
-
 <nav id="bottom-nav">
   <button class="bnav-btn" onclick="abrirFbPanel()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15a4 4 0 004 4h9a5 5 0 10-4.5-8.5A5 5 0 003 15z"/></svg>
@@ -5490,3 +5330,4 @@ if('serviceWorker' in navigator){
 </div>
 </body>
 </html>
+
