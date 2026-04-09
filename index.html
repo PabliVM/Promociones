@@ -4423,11 +4423,16 @@ function esDescanso(eq){
 }
 function toggleDescanso(eq){
   if(!modoDescanso[dia]) modoDescanso[dia]={};
-  modoDescanso[dia][eq] = !modoDescanso[dia][eq];
-  // Si activa descanso, desactivar partido
-  if(modoDescanso[dia][eq] && modoPartido[dia]?.[eq]){
-    modoPartido[dia][eq]=false;
+  const activando = !modoDescanso[dia][eq];
+  modoDescanso[dia][eq] = activando;
+
+  if(activando){
+    // Desactivar partido si estaba activo
+    if(modoPartido[dia]?.[eq]) modoPartido[dia][eq]=false;
+    // Mover todos los jugadores del campo a disponibles
+    resetearSoloCampo(eq);
   }
+
   autoGuardar(); renderCards();
 }
 
@@ -5330,4 +5335,3 @@ if('serviceWorker' in navigator){
 </div>
 </body>
 </html>
-
