@@ -3649,6 +3649,10 @@ function cargarGuardado(){
     if(payload.extraZonas) extraZonas = payload.extraZonas;
     if(payload.fechas) FECHAS=payload.fechas;
     if(payload.promInfo){ promInfo = payload.promInfo; }
+    if(payload.tiposConfig)  tiposConfig  = payload.tiposConfig;
+    if(payload.tipoPartido)  tipoPartido  = payload.tipoPartido;
+    if(payload.modoPartido)  modoPartido  = payload.modoPartido;
+    if(payload.modoDescanso) modoDescanso = payload.modoDescanso;
     // Asegurar estructura promInfo para todos los días/equipos
     DIAS.forEach(d=>{ if(!promInfo[d]) promInfo[d]={}; EQUIPOS.forEach(eq=>{ if(!promInfo[d][eq]) promInfo[d][eq]={}; }); });
     // Asegurar que todos los equipos tienen sus colNames
