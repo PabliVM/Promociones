@@ -1123,18 +1123,13 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 
 /* ZONA BANQUILLO */
 .zona-banquillo{padding:7px 10px;background:#1a1200;border-top:2px solid #f59e0b;min-height:44px;}
-/* Lista automática del campo */
 .lista-campo-wrap{padding:6px 10px 8px;background:rgba(0,0,0,.15);border-top:1px solid rgba(255,255,255,.06);}
 .lista-campo-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-.lista-campo-lbl{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.8px;text-transform:uppercase;}
-.lista-campo-copy{padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.4);font-size:9px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:.4px;transition:all .15s;}
-.lista-campo-copy:active{background:rgba(255,255,255,.1);color:#fff;}
-.lista-campo-items{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;white-space:pre-wrap;word-break:break-word;}
-.lista-campo-empty{font-family:'Barlow Condensed',sans-serif;font-size:11px;color:rgba(255,255,255,.2);font-style:italic;}
-/* Nota banquillo */
+.lista-campo-lbl{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.8px;}
+.lista-campo-copy{padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.4);font-size:9px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;}
+.lista-campo-items{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:rgba(255,255,255,.7);line-height:1.7;}
 .banq-chip-wrap{display:flex;align-items:center;gap:4px;margin:2px 0;}
-.banq-nota-inp{flex:1;min-width:0;padding:2px 6px;border-radius:6px;border:1px solid rgba(245,158,11,.2);background:rgba(245,158,11,.06);color:rgba(255,255,255,.7);font-size:9px;font-family:'Barlow Condensed',sans-serif;outline:none;transition:border .15s;}
-.banq-nota-inp:focus{border-color:rgba(245,158,11,.5);color:#fff;}
+.banq-nota-inp{flex:1;min-width:0;max-width:90px;padding:2px 6px;border-radius:6px;border:1px solid rgba(245,158,11,.2);background:rgba(245,158,11,.06);color:rgba(255,255,255,.7);font-size:9px;font-family:'Barlow Condensed',sans-serif;outline:none;}
 .banq-nota-inp::placeholder{color:rgba(255,255,255,.2);}
 .zona-banquillo.dz-active{background:#292200;outline:2px dashed #f59e0b;outline-offset:-2px;}
 .partido-banner{background:#1a1000;border-top:2px solid #f59e0b;border-bottom:1px solid rgba(245,158,11,.2);padding:5px 12px;display:flex;align-items:center;gap:10px;}
@@ -4124,50 +4119,42 @@ function buildCard(eq){
   }
   card.appendChild(cWrap);
 
-  // Lista automática del campo (siempre visible si hay jugadores)
-  const listaCampoWrap = mk('div','lista-campo-wrap');
-  listaCampoWrap.id = 'lista-campo-'+eq.replace(/ /g,'_');
-  const lcHdr = mk('div','lista-campo-hdr');
-  const lcLbl = mk('div','lista-campo-lbl'); lcLbl.textContent = 'Jugadores en campo';
-  const lcBtn = mk('button','lista-campo-copy'); lcBtn.textContent = 'Copiar';
-  lcBtn.onclick = (e)=>{ e.stopPropagation(); copiarListaCampo(eq); };
-  lcHdr.appendChild(lcLbl); lcHdr.appendChild(lcBtn);
-  listaCampoWrap.appendChild(lcHdr);
-  const lcItems = mk('div','lista-campo-items');
-  lcItems.id = 'lista-campo-items-'+eq.replace(/ /g,'_');
-  if(d.campo.length){
-    lcItems.textContent = d.campo.map((n,i)=>(i+1)+'. '+n).join('
-');
-  } else {
-    const emp = mk('div','lista-campo-empty'); emp.textContent = 'Sin jugadores en campo';
-    lcItems.appendChild(emp);
+  // Lista automática del campo
+  {
+    const lcW=mk('div','lista-campo-wrap');
+    const lcH=mk('div','lista-campo-hdr');
+    const lcL=mk('div','lista-campo-lbl'); lcL.textContent='EN CAMPO';
+    const lcB=mk('button','lista-campo-copy'); lcB.textContent='Copiar';
+    lcB.onclick=e=>{e.stopPropagation();copiarListaCampo(eq);};
+    lcH.appendChild(lcL);lcH.appendChild(lcB);lcW.appendChild(lcH);
+    const lcI=mk('div','lista-campo-items');
+    const campoJugs=d.campo||[];
+    lcI.textContent=campoJugs.length
+      ? campoJugs.map((n,i)=>(i+1)+'. '+n).join('
+')
+      : '—';
+    lcW.appendChild(lcI);
+    card.appendChild(lcW);
   }
-  listaCampoWrap.appendChild(lcItems);
-  card.appendChild(listaCampoWrap);
 
-  // Banquillo (solo en modo partido, justo debajo del campo)
+  // Banquillo (solo en modo partido)
   if(esPartido(eq)){
+    if(!d.banquillo) d.banquillo=[];
     const zBanq=mk('div','zona-banquillo dz');
     zBanq.dataset.eq=eq; zBanq.dataset.zona='banquillo';
     const lblB=mk('div','zona-lbl'); lblB.textContent='🪑 BANQUILLO';
     zBanq.appendChild(lblB);
     const cwB=mk('div','chips-wrap');
-    // PRIORIDAD 3: chips de banquillo con nota editable
     d.banquillo.forEach(n=>{
-      const wrap = mk('div','banq-chip-wrap');
+      const wrap=mk('div','banq-chip-wrap');
       wrap.appendChild(chip(n,eq,'banquillo','c-naranja','cz'));
-      const notaKey = 'banqNota_'+dia+'_'+eq+'_'+n;
-      const notaInp = mk('input','banq-nota-inp');
-      notaInp.type='text'; notaInp.maxLength=30;
-      notaInp.placeholder='ej: 30 min…';
-      notaInp.value = (window.banqNotas||{})[notaKey]||'';
-      notaInp.onclick = e=>e.stopPropagation();
-      notaInp.oninput = ()=>{
-        if(!window.banqNotas) window.banqNotas={};
-        window.banqNotas[notaKey]=notaInp.value;
-        autoGuardar();
-      };
-      wrap.appendChild(notaInp);
+      const nKey='bq_'+dia+'_'+eq+'_'+n;
+      const nInp=mk('input','banq-nota-inp');
+      nInp.type='text';nInp.maxLength=25;nInp.placeholder='nota…';
+      nInp.value=(window.banqNotas||{})[nKey]||'';
+      nInp.onclick=e=>e.stopPropagation();
+      nInp.oninput=()=>{if(!window.banqNotas)window.banqNotas={};window.banqNotas[nKey]=nInp.value;autoGuardar();};
+      wrap.appendChild(nInp);
       cwB.appendChild(wrap);
     });
     zBanq.appendChild(cwB);
@@ -4649,7 +4636,6 @@ function cerrarUYL(e){
 // listaUYL     = jugadores EXTRA de otros equipos añadidos manualmente
 // listaUYLExcl = jugadores de JA explícitamente excluidos
 if(!window.listaUYLExcl) window.listaUYLExcl=[];
-if(!window.banqNotas) window.banqNotas={};
 var listaUYLExcl = window.listaUYLExcl;
 
 function getPlantillaUYL(){
@@ -5065,40 +5051,35 @@ function move(fromEq,fromZona,toEq,toZona,nombre){
 // ══════════════════════════════════════════════════
 let _copyTipo = 'dia'; // 'dia' | 'semana'
 let _copyDiasDest = new Set();
+if(!window.banqNotas) window.banqNotas={};
 
-// Copiar lista de jugadores en campo al portapapeles
 function copiarListaCampo(eq){
-  const d = data[dia][eq];
-  if(!d?.campo?.length){ toast('Sin jugadores en campo'); return; }
-  const esModoPartido = esPartido(eq);
-  let txt = (EQ_LABEL[eq]||eq) + ' — ' + dia + ' ' + (FECHAS[dia]||'') + '
+  const d=data[dia][eq];
+  if(!d?.campo?.length){toast('Sin jugadores en campo');return;}
+  let txt=(EQ_LABEL[eq]||eq)+' — '+dia+' '+(FECHAS[dia]||'')+'
 ';
-  txt += '─'.repeat(28) + '
+  txt+='CAMPO ('+d.campo.length+'):
 ';
-  txt += 'CAMPO (' + d.campo.length + '):
-';
-  txt += d.campo.map((n,i)=>'  '+(i+1)+'. '+n).join('
+  txt+=d.campo.map((n,i)=>'  '+(i+1)+'. '+n).join('
 ');
-  if(esModoPartido && d.banquillo?.length){
-    txt += '
+  if(esPartido(eq)&&(d.banquillo||[]).length){
+    txt+='
 
-BANQUILLO (' + d.banquillo.length + '):
+BANQUILLO ('+d.banquillo.length+'):
 ';
-    txt += d.banquillo.map((n,i)=>{
-      const nota = (window.banqNotas||{})['banqNota_'+dia+'_'+eq+'_'+n]||'';
+    txt+=d.banquillo.map((n,i)=>{
+      const nota=(window.banqNotas||{})['bq_'+dia+'_'+eq+'_'+n]||'';
       return '  '+(i+1)+'. '+n+(nota?' ('+nota+')':'');
     }).join('
 ');
   }
-  navigator.clipboard?.writeText(txt).then(()=>toast('✓ Lista copiada'))
-    .catch(()=>{
-      // fallback iOS
-      const ta=document.createElement('textarea');
-      ta.value=txt; document.body.appendChild(ta);
-      ta.select(); document.execCommand('copy');
-      document.body.removeChild(ta);
-      toast('✓ Lista copiada');
-    });
+  try{navigator.clipboard.writeText(txt).then(()=>toast('✓ Copiado'));}
+  catch(e){
+    const ta=document.createElement('textarea');
+    ta.value=txt;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    toast('✓ Copiado');
+  }
 }
 let _copyDiaSemanaLunes = null; // semana destino para modo día (null = semana actual)
 let _copyEqs = new Set(EQUIPOS);
