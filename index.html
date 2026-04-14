@@ -32,42 +32,61 @@ const db = firebase.firestore();
 window._db = db;
 window._fbReady = true;
 
+function fbErrorMsg(e){
+  if(!e) return 'Error desconocido';
+  return e.message || String(e);
+}
+
 // Guardar sesión en Firebase
 window.fbGuardarSesion = async function(nombre, payload){
   try{
-    // Limpiar undefined antes de guardar
     const clean = JSON.parse(JSON.stringify(payload));
     await db.collection('sesiones').doc(nombre).set({
       ...clean,
       _nombre: nombre,
       _ts: firebase.firestore.FieldValue.serverTimestamp()
     });
-    return true;
-  }catch(e){ console.error('fbGuardarSesion error:',e); return false; }
+    return { ok:true };
+  }catch(e){
+    console.error('fbGuardarSesion error:', e);
+    return { ok:false, reason:'error', error:e, message:fbErrorMsg(e) };
+  }
 };
 
 // Cargar sesión desde Firebase
 window.fbCargarSesion = async function(nombre){
   try{
     const snap = await db.collection('sesiones').doc(nombre).get();
-    return snap.exists ? snap.data() : null;
-  }catch(e){ console.error('fbCargarSesion error:',e); return null; }
+    if(!snap.exists){
+      return { ok:false, reason:'not_found', message:'La sesión no existe en Firebase.' };
+    }
+    return { ok:true, data:snap.data() };
+  }catch(e){
+    console.error('fbCargarSesion error:', e);
+    return { ok:false, reason:'error', error:e, message:fbErrorMsg(e) };
+  }
 };
 
 // Listar sesiones guardadas
 window.fbListarSesiones = async function(){
   try{
     const snap = await db.collection('sesiones').get();
-    return snap.docs.map(d=>({id:d.id, ...d.data()}));
-  }catch(e){ console.error('fbListarSesiones error:',e); return []; }
+    return { ok:true, data:snap.docs.map(d=>({id:d.id, ...d.data()})) };
+  }catch(e){
+    console.error('fbListarSesiones error:', e);
+    return { ok:false, reason:'error', error:e, message:fbErrorMsg(e), data:[] };
+  }
 };
 
 // Eliminar sesión
 window.fbEliminarSesion = async function(nombre){
   try{
     await db.collection('sesiones').doc(nombre).delete();
-    return true;
-  }catch(e){ console.error('fbEliminarSesion error:',e); return false; }
+    return { ok:true };
+  }catch(e){
+    console.error('fbEliminarSesion error:', e);
+    return { ok:false, reason:'error', error:e, message:fbErrorMsg(e) };
+  }
 };
 
 // Señalizar que Firebase está listo
@@ -1104,6 +1123,19 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 
 /* ZONA BANQUILLO */
 .zona-banquillo{padding:7px 10px;background:#1a1200;border-top:2px solid #f59e0b;min-height:44px;}
+/* Lista automática del campo */
+.lista-campo-wrap{padding:6px 10px 8px;background:rgba(0,0,0,.15);border-top:1px solid rgba(255,255,255,.06);}
+.lista-campo-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.lista-campo-lbl{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.8px;text-transform:uppercase;}
+.lista-campo-copy{padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.4);font-size:9px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:.4px;transition:all .15s;}
+.lista-campo-copy:active{background:rgba(255,255,255,.1);color:#fff;}
+.lista-campo-items{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;white-space:pre-wrap;word-break:break-word;}
+.lista-campo-empty{font-family:'Barlow Condensed',sans-serif;font-size:11px;color:rgba(255,255,255,.2);font-style:italic;}
+/* Nota banquillo */
+.banq-chip-wrap{display:flex;align-items:center;gap:4px;margin:2px 0;}
+.banq-nota-inp{flex:1;min-width:0;padding:2px 6px;border-radius:6px;border:1px solid rgba(245,158,11,.2);background:rgba(245,158,11,.06);color:rgba(255,255,255,.7);font-size:9px;font-family:'Barlow Condensed',sans-serif;outline:none;transition:border .15s;}
+.banq-nota-inp:focus{border-color:rgba(245,158,11,.5);color:#fff;}
+.banq-nota-inp::placeholder{color:rgba(255,255,255,.2);}
 .zona-banquillo.dz-active{background:#292200;outline:2px dashed #f59e0b;outline-offset:-2px;}
 .partido-banner{background:#1a1000;border-top:2px solid #f59e0b;border-bottom:1px solid rgba(245,158,11,.2);padding:5px 12px;display:flex;align-items:center;gap:10px;}
 .partido-lbl{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;color:#f59e0b;letter-spacing:2px;white-space:nowrap;}
@@ -2251,12 +2283,20 @@ function cerrarFbPanel(){
 async function renderFbLista(){
   const lista = document.getElementById('fb-lista');
   lista.innerHTML = '<div class="fb-empty">Cargando...</div>';
-  const sesiones = await window.fbListarSesiones();
+
+  const res = await window.fbListarSesiones();
+  if(!res.ok){
+    lista.innerHTML = '<div class="fb-empty">Error al leer Firebase</div>';
+    toast('❌ Firebase: ' + (res.message || 'no se pudieron listar las sesiones'));
+    return;
+  }
+
+  const sesiones = Array.isArray(res.data) ? res.data : [];
   if(!sesiones.length){
     lista.innerHTML = '<div class="fb-empty">No hay sesiones guardadas</div>';
     return;
   }
-  // Ordenar por timestamp más reciente
+
   sesiones.sort((a,b)=> (b._ts?.seconds||0) - (a._ts?.seconds||0));
   lista.innerHTML = '';
   sesiones.forEach(s=>{
@@ -2265,11 +2305,12 @@ async function renderFbLista(){
     const fecha = s._ts?.seconds
       ? new Date(s._ts.seconds*1000).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})
       : '';
+    const safeNombre = String(s._nombre || s.id || '').replace(/'/g, "\\'");
     row.innerHTML = `
-      <span class="fb-sesion-nombre" title="${s._nombre}">${s._nombre}</span>
+      <span class="fb-sesion-nombre" title="${s._nombre || s.id || ''}">${s._nombre || s.id || ''}</span>
       <span class="fb-sesion-ts">${fecha}</span>
-      <button class="fb-btn cargar" onclick="fbCargar('${s._nombre}')">⬇️ Cargar</button>
-      <button class="fb-btn borrar" onclick="fbBorrar('${s._nombre}', this)">🗑️</button>`;
+      <button class="fb-btn cargar" onclick="fbCargar('${safeNombre}')">⬇️ Cargar</button>
+      <button class="fb-btn borrar" onclick="fbBorrar('${safeNombre}', this)">🗑️</button>`;
     lista.appendChild(row);
   });
 }
@@ -2290,65 +2331,83 @@ async function fbGuardarActual(){
     primerEquipoJugadores,
     fechas: FECHAS
   };
-  const ok = await window.fbGuardarSesion(nombre, payload);
-  if(ok){
-    _fbSesionActiva = nombre; // activar sincronización automática
+  const res = await window.fbGuardarSesion(nombre, payload);
+  if(res.ok){
+    _fbSesionActiva = nombre;
     toast('✅ Guardado en la nube: '+nombre);
     inp.value = '';
     renderFbLista();
   } else {
-    toast('❌ Error al guardar en Firebase');
+    toast('❌ Firebase: ' + (res.message || 'error al guardar'));
   }
 }
 
 async function fbCargar(nombre){
   if(!window._fbReady){ toast('⏳ Firebase no conectado'); return; }
   if(!confirm('¿Cargar "'+nombre+'"? Se sobreescribirá lo actual.')){ return; }
+
   toast('☁️ Cargando...');
-  const payload = await window.fbCargarSesion(nombre);
-  if(!payload){ toast('❌ No se encontró la sesión'); return; }
-  if(payload.data)        data        = payload.data;
-  if(payload.pos)         pos         = payload.pos;
-  if(payload.plantillas)  plantillas  = payload.plantillas;
-  if(payload.origen)      Object.assign(origen, payload.origen);
-  if(payload.colNames)    colNames    = payload.colNames;
-  if(payload.extraZonas)  extraZonas  = payload.extraZonas;
-  if(payload.promInfo)    promInfo    = payload.promInfo;
-  if(payload.multiEq)     multiEq     = payload.multiEq;
-  if(payload.modoPartido) modoPartido = payload.modoPartido;
-  if(payload.modoDescanso) modoDescanso = payload.modoDescanso;
-  if(payload.modoUYL)      modoUYL      = payload.modoUYL;
-  if(payload.listaUYL)     listaUYL     = payload.listaUYL;
-  if(payload.listaUYLExcl) window.listaUYLExcl = payload.listaUYLExcl;
-  if(payload.tipoPartido)  tipoPartido  = payload.tipoPartido;
-  if(payload.tiposConfig)       tiposConfig           = payload.tiposConfig;
-  if(payload.modoDescanso)      modoDescanso          = payload.modoDescanso;
-  if(payload.modoUYL)           modoUYL               = payload.modoUYL;
-  if(payload.listaUYL)          listaUYL              = payload.listaUYL;
-  if(payload.listaUYLExcl)      window.listaUYLExcl   = payload.listaUYLExcl;
-  if(payload.tipoPartido)       tipoPartido           = payload.tipoPartido;
-  if(payload.rivales)           window.rivales        = payload.rivales;
+  const res = await window.fbCargarSesion(nombre);
+
+  if(!res.ok){
+    if(res.reason === 'not_found'){
+      toast('❌ La sesión no existe en Firebase');
+    }else{
+      toast('❌ Firebase: ' + (res.message || 'error al cargar'));
+    }
+    return;
+  }
+
+  const payload = res.data || {};
+
+  if(payload.data)                  data = payload.data;
+  if(payload.pos)                   pos = payload.pos;
+  if(payload.plantillas)            plantillas = payload.plantillas;
+  if(payload.origen)                origen = { ...origen, ...payload.origen };
+  if(payload.colNames)              colNames = payload.colNames;
+  if(payload.extraZonas)            extraZonas = payload.extraZonas;
+  if(payload.promInfo)              promInfo = payload.promInfo;
+  if(payload.multiEq)               multiEq = payload.multiEq;
+  if(payload.modoPartido)           modoPartido = payload.modoPartido;
+  if(payload.modoDescanso)          modoDescanso = payload.modoDescanso;
+  if(payload.modoUYL)               modoUYL = payload.modoUYL;
+  if(payload.listaUYL)              listaUYL = payload.listaUYL;
+  if(payload.listaUYLExcl)          window.listaUYLExcl = payload.listaUYLExcl;
+  if(payload.tipoPartido)           tipoPartido = payload.tipoPartido;
+  if(payload.tiposConfig)           tiposConfig = payload.tiposConfig;
+  if(payload.rivales)               window.rivales = payload.rivales;
   if(payload.primerEquipoJugadores) primerEquipoJugadores = payload.primerEquipoJugadores;
-  if(payload.fechas)      Object.assign(FECHAS, payload.fechas);
-  // Migraciones
-  if(colNames['CASTILLA']?.[0]==='PROMOCIÓN') colNames['CASTILLA'][0]='1ER EQUIPO';
-  _fbSesionActiva = nombre; // marcar sesión activa para guardado automático
-  autoGuardar();
-  render();
-  renderDias();
-  cerrarFbPanel();
-  toast('✅ Sesión "'+nombre+'" cargada — sincronización activa');
+  if(payload.banqNotas) window.banqNotas = payload.banqNotas;
+  if(payload.fechas)                Object.assign(FECHAS, payload.fechas);
+
+  if(colNames['CASTILLA']?.[0] === 'PROMOCIÓN') colNames['CASTILLA'][0] = '1ER EQUIPO';
+
+  _fbSesionActiva = nombre;
+
+  try{
+    render();
+    renderDias();
+    renderEqs();
+    renderCards();
+    renderMultiEqBar();
+    cerrarFbPanel();
+    toast('✅ Sesión "'+nombre+'" cargada');
+    autoGuardar();
+  }catch(e){
+    console.error('fbCargar render error:', e);
+    toast('⚠️ Datos cargados, pero hubo un error al pintar la pantalla: ' + (e.message || e));
+  }
 }
 
 async function fbBorrar(nombre, btn){
   if(!confirm('¿Eliminar "'+nombre+'"? No se puede deshacer.')){ return; }
   btn.textContent = '...';
-  const ok = await window.fbEliminarSesion(nombre);
-  if(ok){
+  const res = await window.fbEliminarSesion(nombre);
+  if(res.ok){
     toast('🗑️ "'+nombre+'" eliminado');
     renderFbLista();
   } else {
-    toast('❌ Error al eliminar');
+    toast('❌ Firebase: ' + (res.message || 'error al eliminar'));
     btn.textContent = '🗑️';
   }
 }
@@ -3013,6 +3072,7 @@ function cargarFicheroImport(ev){
     if(payload.modoPartido) modoPartido = payload.modoPartido;
     if(payload.rivales)          rivales              = payload.rivales;
     if(payload.primerEquipoJugadores) primerEquipoJugadores = payload.primerEquipoJugadores;
+  if(payload.banqNotas) window.banqNotas = payload.banqNotas;
       if(payload.fechas)     Object.assign(FECHAS, payload.fechas);
       // Migración Castilla
       if(colNames['CASTILLA'] && colNames['CASTILLA'][0]==='PROMOCIÓN') colNames['CASTILLA'][0]='1ER EQUIPO';
@@ -3261,6 +3321,7 @@ function buildPayload(manualSave=false){
     data,pos,plantillas,origen,colNames,extraZonas,promInfo,multiEq,fechas:FECHAS,
     modoUYL, listaUYL, listaUYLExcl: window.listaUYLExcl||[], tipoPartido, tiposConfig, modoDescanso,
     modoPartido, primerEquipoJugadores, rivales: window.rivales||{},
+    banqNotas: window.banqNotas||{},
     ts: _lastManualTS
   };
 }
@@ -4063,6 +4124,27 @@ function buildCard(eq){
   }
   card.appendChild(cWrap);
 
+  // Lista automática del campo (siempre visible si hay jugadores)
+  const listaCampoWrap = mk('div','lista-campo-wrap');
+  listaCampoWrap.id = 'lista-campo-'+eq.replace(/ /g,'_');
+  const lcHdr = mk('div','lista-campo-hdr');
+  const lcLbl = mk('div','lista-campo-lbl'); lcLbl.textContent = 'Jugadores en campo';
+  const lcBtn = mk('button','lista-campo-copy'); lcBtn.textContent = 'Copiar';
+  lcBtn.onclick = (e)=>{ e.stopPropagation(); copiarListaCampo(eq); };
+  lcHdr.appendChild(lcLbl); lcHdr.appendChild(lcBtn);
+  listaCampoWrap.appendChild(lcHdr);
+  const lcItems = mk('div','lista-campo-items');
+  lcItems.id = 'lista-campo-items-'+eq.replace(/ /g,'_');
+  if(d.campo.length){
+    lcItems.textContent = d.campo.map((n,i)=>(i+1)+'. '+n).join('
+');
+  } else {
+    const emp = mk('div','lista-campo-empty'); emp.textContent = 'Sin jugadores en campo';
+    lcItems.appendChild(emp);
+  }
+  listaCampoWrap.appendChild(lcItems);
+  card.appendChild(listaCampoWrap);
+
   // Banquillo (solo en modo partido, justo debajo del campo)
   if(esPartido(eq)){
     const zBanq=mk('div','zona-banquillo dz');
@@ -4070,7 +4152,24 @@ function buildCard(eq){
     const lblB=mk('div','zona-lbl'); lblB.textContent='🪑 BANQUILLO';
     zBanq.appendChild(lblB);
     const cwB=mk('div','chips-wrap');
-    d.banquillo.forEach(n=>cwB.appendChild(chip(n,eq,'banquillo','c-naranja','cz')));
+    // PRIORIDAD 3: chips de banquillo con nota editable
+    d.banquillo.forEach(n=>{
+      const wrap = mk('div','banq-chip-wrap');
+      wrap.appendChild(chip(n,eq,'banquillo','c-naranja','cz'));
+      const notaKey = 'banqNota_'+dia+'_'+eq+'_'+n;
+      const notaInp = mk('input','banq-nota-inp');
+      notaInp.type='text'; notaInp.maxLength=30;
+      notaInp.placeholder='ej: 30 min…';
+      notaInp.value = (window.banqNotas||{})[notaKey]||'';
+      notaInp.onclick = e=>e.stopPropagation();
+      notaInp.oninput = ()=>{
+        if(!window.banqNotas) window.banqNotas={};
+        window.banqNotas[notaKey]=notaInp.value;
+        autoGuardar();
+      };
+      wrap.appendChild(notaInp);
+      cwB.appendChild(wrap);
+    });
     zBanq.appendChild(cwB);
     zBanq.appendChild(buildAddInput(eq,'banquillo'));
     card.appendChild(zBanq);
@@ -4550,6 +4649,7 @@ function cerrarUYL(e){
 // listaUYL     = jugadores EXTRA de otros equipos añadidos manualmente
 // listaUYLExcl = jugadores de JA explícitamente excluidos
 if(!window.listaUYLExcl) window.listaUYLExcl=[];
+if(!window.banqNotas) window.banqNotas={};
 var listaUYLExcl = window.listaUYLExcl;
 
 function getPlantillaUYL(){
@@ -4965,6 +5065,41 @@ function move(fromEq,fromZona,toEq,toZona,nombre){
 // ══════════════════════════════════════════════════
 let _copyTipo = 'dia'; // 'dia' | 'semana'
 let _copyDiasDest = new Set();
+
+// Copiar lista de jugadores en campo al portapapeles
+function copiarListaCampo(eq){
+  const d = data[dia][eq];
+  if(!d?.campo?.length){ toast('Sin jugadores en campo'); return; }
+  const esModoPartido = esPartido(eq);
+  let txt = (EQ_LABEL[eq]||eq) + ' — ' + dia + ' ' + (FECHAS[dia]||'') + '
+';
+  txt += '─'.repeat(28) + '
+';
+  txt += 'CAMPO (' + d.campo.length + '):
+';
+  txt += d.campo.map((n,i)=>'  '+(i+1)+'. '+n).join('
+');
+  if(esModoPartido && d.banquillo?.length){
+    txt += '
+
+BANQUILLO (' + d.banquillo.length + '):
+';
+    txt += d.banquillo.map((n,i)=>{
+      const nota = (window.banqNotas||{})['banqNota_'+dia+'_'+eq+'_'+n]||'';
+      return '  '+(i+1)+'. '+n+(nota?' ('+nota+')':'');
+    }).join('
+');
+  }
+  navigator.clipboard?.writeText(txt).then(()=>toast('✓ Lista copiada'))
+    .catch(()=>{
+      // fallback iOS
+      const ta=document.createElement('textarea');
+      ta.value=txt; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('✓ Lista copiada');
+    });
+}
 let _copyDiaSemanaLunes = null; // semana destino para modo día (null = semana actual)
 let _copyEqs = new Set(EQUIPOS);
 
@@ -5330,4 +5465,3 @@ if('serviceWorker' in navigator){
 </div>
 </body>
 </html>
-
