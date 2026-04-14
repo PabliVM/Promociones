@@ -3208,60 +3208,45 @@ function renderPlantBody(){
   document.getElementById('plant-add-input').value = '';
 
   if(plantEqActivo === 'JA_YOUTH'){
-    // ── Vista especial JA Youth ──
     document.getElementById('plant-eq-title').textContent = 'JA Youth League';
-    const plantillaCompleta = getPlantillaUYL();
-    document.getElementById('plant-count').textContent = plantillaCompleta.length + ' jugadores · ' + listaUYL.length + ' extras';
 
-    // Info
-    const info = mk('div','plant-uyl-info');
-    info.textContent = 'Base: todos los JA. Excluidos: '+listaUYLExcl.length+'. Extras de otros equipos: '+listaUYL.length+'.';
-    list.appendChild(info);
+    // Inicializar con JA si está vacía
+    if(listaUYL.length === 0){
+      listaUYL = Object.keys(origen).filter(n=>origen[n]==='JUVENIL A').sort();
+      autoGuardar();
+    }
 
-    // Jugadores JA base (con opción de excluir/incluir)
-    const jaJugs = Object.keys(origen).filter(n=>origen[n]==='JUVENIL A').sort();
-    jaJugs.forEach((nombre, i)=>{
-      const excluido = listaUYLExcl.includes(nombre);
-      const row = mk('div','plant-row'+(excluido?' plant-row-excluido':''));
-      row.style.cssText = excluido ? 'opacity:.45;' : '';
-      const num = mk('span','plant-num'); num.textContent = excluido ? '✗' : (i+1);
-      const nm  = mk('span','plant-name');
-      nm.innerHTML = nombre + '<span class="plant-uyl-origin">JA</span>';
-      const del = mk('button','plant-del');
-      del.textContent = excluido ? '✓' : '✗';
-      del.title = excluido ? 'Incluir en Youth League' : 'Excluir de Youth League';
-      del.style.color = excluido ? '#4ade80' : 'rgba(239,68,68,.6)';
-      del.onclick = ()=>{
-        const idx = listaUYLExcl.indexOf(nombre);
-        if(idx>=0) listaUYLExcl.splice(idx,1);
-        else listaUYLExcl.push(nombre);
-        renderPlantTabs(); renderPlantBody();
-        autoGuardar();
-      };
-      row.appendChild(num); row.appendChild(nm); row.appendChild(del);
-      list.appendChild(row);
-    });
+    document.getElementById('plant-count').textContent = listaUYL.length + ' jugadores';
 
-    // Separador extras
-    const sep = mk('div','plant-uyl-info');
-    sep.style.cssText = 'margin-top:10px;padding-top:8px;border-top:1px solid rgba(96,180,255,.2);color:#60b4ff;';
-    sep.textContent = '── Extras de otros equipos ──';
-    list.appendChild(sep);
+    // Botón para re-sincronizar con JA actual
+    const syncBtn = mk('button','');
+    syncBtn.textContent = '↺ Sincronizar con JA actual';
+    syncBtn.style.cssText = 'margin:0 0 10px;padding:6px 12px;border-radius:8px;border:1px solid rgba(96,180,255,.3);background:rgba(96,180,255,.08);color:#60b4ff;font-size:12px;cursor:pointer;font-family:"Barlow Condensed",sans-serif;font-weight:700;';
+    syncBtn.title = 'Añade los jugadores de JA que falten (no elimina los que ya están)';
+    syncBtn.onclick = ()=>{
+      const jaActual = Object.keys(origen).filter(n=>origen[n]==='JUVENIL A');
+      let añadidos = 0;
+      jaActual.forEach(n=>{ if(!listaUYL.includes(n)){ listaUYL.push(n); añadidos++; } });
+      listaUYL.sort((a,b)=>a.localeCompare(b,'es'));
+      renderPlantTabs(); renderPlantBody(); autoGuardar();
+      if(añadidos) toast('↺ '+añadidos+' jugadores de JA añadidos');
+      else toast('✓ Ya estaba sincronizado con JA');
+    };
+    list.appendChild(syncBtn);
 
-    // Jugadores extra (de otros equipos)
+    // Lista de jugadores Youth
     listaUYL.forEach((nombre, i)=>{
-      const eqO = origen[nombre] || '?';
-      const row = mk('div','plant-row uyl-extra');
+      const eqO = origen[nombre] || 'JA';
+      const row = mk('div','plant-row');
       const num = mk('span','plant-num'); num.textContent = (i+1);
       const nm  = mk('span','plant-name');
-      nm.innerHTML = nombre + '<span class="plant-uyl-origin">'+eqO+'</span>';
+      nm.innerHTML = nombre + (eqO !== 'JUVENIL A' ? '<span class="plant-uyl-origin" style="color:#60b4ff">'+eqO+'</span>' : '');
       const del = mk('button','plant-del'); del.textContent = '×';
       del.title = 'Quitar de JA Youth';
       del.onclick = ()=>{
         const idx = listaUYL.indexOf(nombre);
         if(idx>=0) listaUYL.splice(idx,1);
-        renderPlantTabs(); renderPlantBody();
-        autoGuardar();
+        renderPlantTabs(); renderPlantBody(); autoGuardar();
       };
       row.appendChild(num); row.appendChild(nm); row.appendChild(del);
       list.appendChild(row);
@@ -3290,18 +3275,18 @@ function plantAñadir(){
   const nombre = input.value.trim().toUpperCase();
   if(!nombre){ input.focus(); return; }
 
-  // ── JA Youth: añadir como extra ──
+  // ── JA Youth: añadir cualquier jugador ──
   if(plantEqActivo === 'JA_YOUTH'){
-    // Solo jugadores que no sean ya de JA
-    if(origen[nombre] === 'JUVENIL A'){
-      toast('⚠️ '+nombre+' ya es de JA — está incluido en la base');
-      input.value=''; return;
-    }
     if(listaUYL.includes(nombre)){
       toast('⚠️ '+nombre+' ya está en JA Youth');
       input.value=''; return;
     }
+    if(!origen[nombre]){
+      toast('⚠️ '+nombre+' no existe en ninguna plantilla');
+      input.value=''; return;
+    }
     listaUYL.push(nombre);
+    listaUYL.sort((a,b)=>a.localeCompare(b,'es'));
     input.value=''; input.focus();
     renderPlantTabs(); renderPlantBody();
     autoGuardar();
@@ -4968,9 +4953,12 @@ if(!window.listaUYLExcl) window.listaUYLExcl=[];
 var listaUYLExcl = window.listaUYLExcl;
 
 function getPlantillaUYL(){
-  // JA base menos excluidos + extras
-  const jaBase = Object.keys(origen).filter(n=>origen[n]==='JUVENIL A' && !listaUYLExcl.includes(n));
-  return [...new Set([...jaBase, ...listaUYL])];
+  // Si listaUYL tiene jugadores, usarla directamente
+  // Si está vacía, inicializarla con los JA actuales y devolver eso
+  if(listaUYL.length === 0){
+    listaUYL = Object.keys(origen).filter(n=>origen[n]==='JUVENIL A').sort();
+  }
+  return [...listaUYL];
 }
 
 function renderUYLList(){
