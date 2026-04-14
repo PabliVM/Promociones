@@ -1824,7 +1824,7 @@ function initTiposConfig(){
 let calendarioPartidos = {}; // calendarioPartidos[eq] = [{fecha:'YYYY-MM-DD', rival:'...'}]
 function initPromInfo(){ DIAS.forEach(d=>{ promInfo[d]={}; EQUIPOS.forEach(eq=>{ promInfo[d][eq]={}; }); }); }
 initPromInfo();
-EQUIPOS.forEach(eq=> colNames[eq]=[eq==='CASTILLA'?'1ER EQUIPO':'PROMOCIÓN','LESIÓN','OTROS']);
+EQUIPOS.forEach(eq=> colNames[eq]=['PROMOCIÓN','LESIÓN','OTROS']);
 // Zonas extra (4ª columna) por equipo: extraZonas[eq] = bool
 let extraZonas = {};
 EQUIPOS.forEach(eq=> extraZonas[eq]=false);
@@ -2152,7 +2152,7 @@ function capturarCampo(eq, card){
     function dibujarColumnas(){
       const colY = HEADER_H + FIELD_H + 8;
       const colDefs = [
-        { label: esCas ? '1ER EQUIPO' : colN[0], items: proms,  color:'#7c3aed' },
+        { label: colN[0], items: proms,  color:'#7c3aed' },
         { label: colN[1],                          items: lesion, color:'#dc2626' },
         { label: colN[2],                          items: otros,  color:'#6b7280' },
       ];
@@ -2194,7 +2194,8 @@ function capturarCampo(eq, card){
         si.onload=()=>{
           const sw=W*0.38;
           const sx=(W-sw)/2;
-          const sy=HEADER_H+(FIELD_H-sw)/2;
+          // Centrar escudo en el campo visual (vertical: 45% del FIELD_H desde arriba)
+          const sy=HEADER_H+(FIELD_H*0.5)-(sw/2);
           ctx.save();
           ctx.globalAlpha=0.22;
           ctx.globalCompositeOperation='screen';
@@ -2366,7 +2367,7 @@ async function fbCargar(nombre){
   if(payload.primerEquipoJugadores) primerEquipoJugadores = payload.primerEquipoJugadores;
   if(payload.fechas)                Object.assign(FECHAS, payload.fechas);
 
-  if(colNames['CASTILLA']?.[0] === 'PROMOCIÓN') colNames['CASTILLA'][0] = '1ER EQUIPO';
+  
 
   // ── Asegurar estructura completa ──
   for(const d of DIAS) for(const e of EQUIPOS){
@@ -2378,8 +2379,8 @@ async function fbCargar(nombre){
   DIAS.forEach(d=>{ if(!promInfo[d]) promInfo[d]={}; EQUIPOS.forEach(eq=>{ if(!promInfo[d][eq]) promInfo[d][eq]={}; }); });
   // Asegurar colNames
   EQUIPOS.forEach(eq=>{
-    if(!colNames[eq]) colNames[eq]=[eq==='CASTILLA'?'1ER EQUIPO':'PROMOCIÓN','LESIÓN','OTROS'];
-    if(eq==='CASTILLA' && colNames[eq][0]==='PROMOCIÓN') colNames[eq][0]='1ER EQUIPO';
+    if(!colNames[eq]) colNames[eq]=['PROMOCIÓN','LESIÓN','OTROS'];
+    
   });
   // Sincronizar plantillas → disponibles (exacto igual que cargarGuardado)
   EQUIPOS.forEach(eq=>{
@@ -2800,7 +2801,7 @@ function renderControl(){
           let lbl = labels[estado]||estado;
           if(estado==='promo' && promInfo[dia]?.[eq]?.[nombre]){
             const dest=promInfo[dia][eq][nombre];
-            lbl += ' →'+(dest==='1ER EQUIPO'?'⭐':eqsShort[dest]||dest);
+            lbl += ' →'+(dest==='1ER EQUIPO'?'1ER':eqsShort[dest]||dest);
           }
           tdE.textContent = lbl;
         }
@@ -2828,7 +2829,7 @@ function abrirPromoDestModal(nombre, eqOrigen, callback){
   // Opción 1er Equipo siempre primera
   const opt1er = mk('div','promo-dest-opt promo-dest-1er');
   opt1er.innerHTML=`<span class="promo-dest-dot" style="background:#C8A800;"></span>
-    <span class="promo-dest-nombre">⭐ 1ER EQUIPO</span>`;
+    <span class="promo-dest-nombre">1ER EQUIPO</span>`;
   opt1er.onclick=()=>{ cerrarPromoDestModal(); callback('1ER EQUIPO'); };
   opts.appendChild(opt1er);
 
@@ -2894,7 +2895,7 @@ function buildCardPrimerEquipo(){
   // Header
   const hdr=mk('div','card-hdr');
   const nm=mk('div','card-hdr-name');
-  nm.innerHTML='<span style="color:#C8A800;">⭐</span> PRIMER EQUIPO';
+  nm.textContent='PRIMER EQUIPO';
   hdr.appendChild(nm);
   const right=mk('div','card-hdr-right');
   const camBtn=mk('button','snap-btn');
@@ -3358,9 +3359,15 @@ function autoGuardar(){
     try{
       const payload=buildPayload(false);
       localStorage.setItem(LS_KEY, JSON.stringify(payload));
-      // Timestamp visual intacto — solo el botón manual lo actualiza
-    }catch(e){ /* silencioso */ }
-  },400);
+      // Sync Firebase si hay sesión activa
+      if(_fbSesionActiva && window._fbReady){
+        window.fbGuardarSesion(_fbSesionActiva, payload).then(res=>{
+          if(res && res.ok) console.log('✓ Auto-sync Firebase:', _fbSesionActiva);
+          else console.warn('Auto-sync Firebase error:', res && res.message);
+        });
+      }
+    }catch(e){ console.warn('autoGuardar error:', e); }
+  },1500); // 1.5s debounce para no saturar Firestore
 }
 
 // Guardado manual — botón elegante arriba
@@ -3645,7 +3652,7 @@ function cargarGuardado(){
     // Asegurar estructura promInfo para todos los días/equipos
     DIAS.forEach(d=>{ if(!promInfo[d]) promInfo[d]={}; EQUIPOS.forEach(eq=>{ if(!promInfo[d][eq]) promInfo[d][eq]={}; }); });
     // Asegurar que todos los equipos tienen sus colNames
-    EQUIPOS.forEach(eq=>{ if(!colNames[eq]) colNames[eq]=[eq==='CASTILLA'?'1ER EQUIPO':'PROMOCIÓN','LESIÓN','OTROS']; if(eq==='CASTILLA' && colNames[eq][0]==='PROMOCIÓN') colNames[eq][0]='1ER EQUIPO'; });
+    EQUIPOS.forEach(eq=>{ if(!colNames[eq]) colNames[eq]=['PROMOCIÓN','LESIÓN','OTROS'];  });
     // Asegurar zonas banquillo
     for(const d of DIAS) for(const e of EQUIPOS){
       if(!data[d])    data[d]={};
@@ -3802,7 +3809,7 @@ function generarFotoLista(eq){
   const lesion     = d.lesionados || [];
   const otros      = d.otros      || [];
   const promoInfoEq = promInfo[dia]?.[eq] || {};
-  const colN       = colNames[eq] || ['PROMOCIÓN','LESIÓN','OTROS'];
+  const colN       = colNames[eq] || ['PROMOCIÓN','LESIÓN','OTROS','EXTRA'];
   const esCas      = eq === 'CASTILLA';
   const esPartidoHoy = esPartido(eq);
   const countTxt   = campo.length ? countLabel(eq, campo) : '0';
@@ -3829,6 +3836,14 @@ function generarFotoLista(eq){
   }
   if(otros.length){
     secciones.push({ label: colN[2]||'OTROS', items: otros, color: '#94a3b8' });
+  }
+  // Zona extra (4ª columna: TTT o nombre personalizado)
+  if(extraZonas[eq]){
+    const extra = d.extra || [];
+    const extraNombre = colN[3] || 'EXTRA';
+    if(extra.length){
+      secciones.push({ label: extraNombre, items: extra, color: '#38bdf8' });
+    }
   }
 
   const HEADER_H = 90;
@@ -3878,12 +3893,7 @@ function generarFotoLista(eq){
   ctx.textBaseline = 'middle';
   ctx.fillText(fechaFmt, PAD + 40, HEADER_H/2 + 6);
 
-  // Número total de jugadores (campo)
-  ctx.fillStyle = '#C8A800';
-  ctx.font = `700 13px ${FONT}`;
-  ctx.textAlign = 'right';
-  ctx.fillText(campo.length + ' jugadores en campo', W - PAD, HEADER_H - 16);
-  ctx.textAlign = 'left';
+  // (contador eliminado — ya aparece en la sección CAMPO abajo)
 
   // Secciones
   let y = HEADER_H + PAD;
@@ -3922,7 +3932,7 @@ function generarFotoLista(eq){
         // Destino promoción
         if(sec.destinos && sec.destinos[nombre]){
           const dest = sec.destinos[nombre];
-          const destLbl = dest==='1ER EQUIPO' ? '⭐ 1ER' : (eqsShort[dest]||dest);
+          const destLbl = dest==='1ER EQUIPO' ? '1ER' : (eqsShort[dest]||dest);
           ctx.fillStyle = '#a78bfa';
           ctx.font = `700 11px ${FONT}`;
           ctx.textAlign = 'right';
