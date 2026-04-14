@@ -830,6 +830,12 @@ body{background:#050c18;font-family:'Inter','Barlow',sans-serif;min-height:100vh
 #plant-add-input:focus{border-color:var(--rm-gold);}
 #plant-add-btn{padding:7px 14px;border-radius:8px;border:none;background:var(--rm-gold);color:#000;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
 #plant-add-btn:hover{background:#e0bc00;}
+#plant-add-row{position:relative;}
+#plant-uyl-dropdown{position:absolute;top:100%;left:0;right:0;z-index:9999;background:#1e293b;border:1px solid rgba(96,180,255,.3);border-radius:0 0 10px 10px;max-height:260px;overflow-y:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+#plant-uyl-dropdown.open{display:block;}
+.puyl-group-hdr{padding:4px 10px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#60b4ff;background:rgba(96,180,255,.06);border-top:1px solid rgba(96,180,255,.1);}
+.puyl-item{padding:8px 12px;font-size:13px;font-family:'Barlow Condensed',sans-serif;font-weight:600;color:#fff;cursor:pointer;letter-spacing:.3px;}
+.puyl-item:hover,.puyl-item.sel{background:rgba(96,180,255,.15);}
 #plant-list{display:flex;flex-direction:column;gap:3px;max-height:340px;overflow-y:auto;padding-right:2px;}
 .plant-row{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);}
 .plant-row:hover{background:rgba(255,255,255,.08);}
@@ -1416,8 +1422,9 @@ td.td-vacio{color:rgba(255,255,255,.12);}
     <div id="plant-body">
       <div id="plant-eq-title"></div>
       <div id="plant-add-row">
-        <input id="plant-add-input" type="text" placeholder="Nombre del jugador…" onkeydown="if(event.key==='Enter')plantAñadir()"/>
+        <input id="plant-add-input" type="text" placeholder="Nombre del jugador…" onkeydown="if(event.key==='Enter')plantAñadir()" oninput="filtrarUYLDrop()" onfocus="filtrarUYLDrop()" onblur="setTimeout(()=>cerrarUYLDrop(),200)"/>
         <button id="plant-add-btn" onclick="plantAñadir()">+ Añadir</button>
+        <div id="plant-uyl-dropdown"></div>
       </div>
       <div id="plant-count"></div>
       <div id="plant-list"></div>
@@ -3176,9 +3183,17 @@ function openPlant(){
 function actualizarPlantInput(){
   const inp = document.getElementById('plant-add-input');
   if(plantEqActivo==='JA_YOUTH'){
-    inp.placeholder = 'Añadir extra de otro equipo…';
+    inp.placeholder = 'Buscar jugador de otro equipo…';
+    inp.oninput = filtrarUYLDrop;
+    inp.onfocus = filtrarUYLDrop;
+    inp.onblur  = ()=>setTimeout(cerrarUYLDrop,200);
   } else {
     inp.placeholder = 'Nombre del jugador…';
+    inp.oninput = null;
+    inp.onfocus = null;
+    inp.onblur  = null;
+    inp.onkeydown = (e)=>{ if(e.key==='Enter') plantAñadir(); };
+    cerrarUYLDrop();
   }
 }
 function closePlant(){
@@ -3862,7 +3877,7 @@ function generarFotoLista(eq){
     { label: 'CAMPO', items: campo, extra: countTxt, color: '#4ade80' },
   ];
   if(esPartidoHoy && banquillo.length){
-    secciones.push({ label: '🪑 BANQUILLO', items: banquillo, color: '#f59e0b' });
+    secciones.push({ label: '🔄 BANQUILLO', items: banquillo, color: '#f59e0b' });
   }
   if(proms.length){
     secciones.push({ label: esCas ? '1ER EQUIPO' : (colN[0]||'PROMOCIÓN'), items: proms, color: '#a78bfa', destinos: promoInfoEq });
@@ -4282,13 +4297,13 @@ function buildCard(eq){
   modoB.style.display = esDescanso(eq) ? 'none' : '';
   modoB.onclick=(e)=>{e.stopPropagation();togglePartido(eq);};
   right.appendChild(modoB);
-  // Botón editar lista UYL — solo Juvenil A
+  // Botón YL — solo Juvenil A: activa/desactiva modo Youth League en disponibles
   if(eq==='JUVENIL A'){
-    const editUYL=mk('button','snap-btn');
-    editUYL.innerHTML='UYL';
-    editUYL.title='Editar lista elegibles Youth League';
-    editUYL.onclick=(e)=>{e.stopPropagation();abrirUYL();};
-    right.appendChild(editUYL);
+    const uylBtn=mk('button','modo-btn uyl'+(esUYL()?' active':''));
+    uylBtn.textContent='YL';
+    uylBtn.title = esUYL() ? 'Youth League activa — clic para desactivar' : 'Activar Youth League';
+    uylBtn.onclick=(e)=>{e.stopPropagation();toggleUYL();};
+    right.appendChild(uylBtn);
   }
 
   // Botón resetear equipo
@@ -4400,7 +4415,7 @@ function buildCard(eq){
   if(esPartido(eq)){
     const zBanq=mk('div','zona-banquillo dz');
     zBanq.dataset.eq=eq; zBanq.dataset.zona='banquillo';
-    const lblB=mk('div','zona-lbl'); lblB.textContent='🪑 BANQUILLO';
+    const lblB=mk('div','zona-lbl'); lblB.textContent='🔄 BANQUILLO';
     zBanq.appendChild(lblB);
     const cwB=mk('div','chips-wrap');
     d.banquillo.forEach(n=>cwB.appendChild(chip(n,eq,'banquillo','c-naranja','cz')));
@@ -4733,6 +4748,56 @@ function ejecutarResetGlobal(){
 }
 
 // ══════════════════════════════════════════════════
+
+// ── Dropdown autocomplete para JA Youth en modal plantillas ──
+function filtrarUYLDrop(){
+  if(plantEqActivo !== 'JA_YOUTH'){ cerrarUYLDrop(); return; }
+  const drop = document.getElementById('plant-uyl-dropdown');
+  const q = document.getElementById('plant-add-input').value.trim().toLowerCase();
+  drop.innerHTML = '';
+
+  const candidatos = Object.keys(origen)
+    .filter(n => origen[n] !== 'JUVENIL A' && origen[n] !== 'PRUEBA' && !listaUYL.includes(n))
+    .filter(n => !q || n.toLowerCase().includes(q))
+    .sort((a,b)=>a.localeCompare(b,'es'));
+
+  if(!candidatos.length){ cerrarUYLDrop(); return; }
+
+  const grupos = {};
+  candidatos.forEach(n=>{ const eq=origen[n]||'?'; if(!grupos[eq]) grupos[eq]=[]; grupos[eq].push(n); });
+  const ordenEqs = EQUIPOS.filter(e=>e!=='JUVENIL A' && grupos[e]);
+  let selIdx = -1;
+  const items = [];
+
+  ordenEqs.forEach(eq=>{
+    const hdr = mk('div','puyl-group-hdr'); hdr.textContent=eq; drop.appendChild(hdr);
+    grupos[eq].forEach(nombre=>{
+      const it = mk('div','puyl-item'); it.textContent=nombre;
+      it.onmousedown=(e)=>{ e.preventDefault(); elegirUYL(nombre); };
+      drop.appendChild(it); items.push(it);
+    });
+  });
+
+  const inp = document.getElementById('plant-add-input');
+  inp.onkeydown = (e)=>{
+    if(e.key==='ArrowDown'){ e.preventDefault(); selIdx=Math.min(selIdx+1,items.length-1); items.forEach((it,i)=>it.classList.toggle('sel',i===selIdx)); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); selIdx=Math.max(selIdx-1,0); items.forEach((it,i)=>it.classList.toggle('sel',i===selIdx)); }
+    else if(e.key==='Enter'){ e.preventDefault(); if(selIdx>=0&&items[selIdx]) items[selIdx].onmousedown(e); else plantAñadir(); }
+    else if(e.key==='Escape'){ cerrarUYLDrop(); }
+  };
+  drop.classList.add('open');
+}
+function cerrarUYLDrop(){ const d=document.getElementById('plant-uyl-dropdown'); if(d) d.classList.remove('open'); }
+function elegirUYL(nombre){
+  if(listaUYL.includes(nombre)){ toast('⚠️ '+nombre+' ya está en JA Youth'); return; }
+  listaUYL.push(nombre);
+  listaUYL.sort((a,b)=>a.localeCompare(b,'es'));
+  document.getElementById('plant-add-input').value='';
+  cerrarUYLDrop();
+  renderPlantTabs(); renderPlantBody(); autoGuardar();
+  toast('✅ '+nombre+' añadido a JA Youth');
+}
+
 // MODAL RESET EQUIPO
 // ══════════════════════════════════════════════════
 let _resetEq = null;
