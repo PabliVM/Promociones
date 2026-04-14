@@ -1473,6 +1473,25 @@ td.td-vacio{color:rgba(255,255,255,.12);}
 </div>
 
 <!-- ── MODAL RESET EQUIPO ── -->
+
+<!-- Modal Reset Global -->
+<div id="reset-global-overlay" onclick="cerrarResetGlobal(event)" style="position:fixed;inset:0;z-index:10200;background:rgba(0,0,0,.75);display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="width:100%;max-width:520px;background:#111827;border-radius:20px 20px 0 0;border:1px solid rgba(255,255,255,.1);padding:0 0 calc(20px + env(safe-area-inset-bottom,0px));">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 10px;border-bottom:1px solid rgba(255,255,255,.08);">
+      <span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;color:#fff;">↺ Resetear equipos</span>
+      <button onclick="cerrarResetGlobal()" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.5);font-size:20px;line-height:1;padding:4px;">×</button>
+    </div>
+    <p style="font-family:'Barlow Condensed',sans-serif;font-size:11px;color:rgba(255,255,255,.4);padding:8px 20px 4px;text-transform:uppercase;letter-spacing:.5px;margin:0;">Selecciona los equipos a resetear hoy</p>
+    <div id="reset-global-checks" style="display:flex;flex-direction:column;gap:6px;padding:10px 16px;"></div>
+    <div style="display:flex;gap:8px;padding:10px 16px 0;">
+      <button onclick="resetGlobalSelAll()" style="flex:1;padding:9px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Todos</button>
+      <button onclick="resetGlobalNone()" style="flex:1;padding:9px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Ninguno</button>
+      <button onclick="ejecutarResetGlobal()" style="flex:2;padding:9px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;cursor:pointer;letter-spacing:.5px;">↺ RESETEAR</button>
+    </div>
+    <button onclick="cerrarResetGlobal()" style="margin:8px 16px 0;width:calc(100% - 32px);padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.5);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">Cancelar</button>
+  </div>
+</div>
+
 <div id="reset-modal-overlay" onclick="cerrarResetModal(event)">
   <div id="reset-modal-box">
     <div id="reset-modal-hdr">
@@ -1544,6 +1563,10 @@ td.td-vacio{color:rgba(255,255,255,.12);}
     <button id="season-badge" onclick="abrirSeasonModal()">
       <span id="season-label">2025-26</span>
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <button id="global-reset-btn" onclick="abrirResetGlobal()" title="Resetear equipos"
+      style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;color:#f87171;font-size:13px;gap:4px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.5px;">
+      ↺ RESET
     </button>
     <div id="save-area">
       <button id="save-btn" onclick="guardarManual()" title="Guardar">
@@ -4638,6 +4661,57 @@ function resetearEquipo(eq){
   autoGuardar();
   render();
   toast(`↺ ${eq} reseteado — ${propios.length} jugadores en disponibles`);
+}
+
+
+// ══════════════════════════════════════════════════
+// RESET GLOBAL — varios equipos a la vez
+// ══════════════════════════════════════════════════
+function abrirResetGlobal(){
+  const container = document.getElementById('reset-global-checks');
+  container.innerHTML = '';
+  EQUIPOS.forEach(eq=>{
+    const enCampo = (data[dia][eq]?.campo||[]).length;
+    const propios = Object.keys(origen).filter(n=>origen[n]===eq).length;
+    const row = document.createElement('label');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);cursor:pointer;border:1px solid rgba(255,255,255,.07);';
+    const cb = document.createElement('input');
+    cb.type='checkbox'; cb.dataset.eq=eq;
+    cb.style.cssText='width:16px;height:16px;accent-color:#ef4444;cursor:pointer;flex-shrink:0;';
+    const info = document.createElement('div');
+    info.style.cssText='display:flex;flex-direction:column;gap:1px;flex:1;';
+    const name = document.createElement('span');
+    name.style.cssText='font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:14px;color:#fff;letter-spacing:.3px;';
+    name.textContent=eq;
+    const desc = document.createElement('span');
+    desc.style.cssText='font-size:11px;color:rgba(255,255,255,.4);font-family:"Barlow Condensed",sans-serif;';
+    desc.textContent=enCampo+' en campo · '+propios+' en plantilla';
+    info.appendChild(name); info.appendChild(desc);
+    row.appendChild(cb); row.appendChild(info);
+    container.appendChild(row);
+  });
+  document.getElementById('reset-global-overlay').style.display='flex';
+}
+
+function cerrarResetGlobal(e){
+  if(!e || e.target===document.getElementById('reset-global-overlay'))
+    document.getElementById('reset-global-overlay').style.display='none';
+}
+
+function resetGlobalSelAll(){
+  document.querySelectorAll('#reset-global-checks input[type=checkbox]').forEach(cb=>cb.checked=true);
+}
+function resetGlobalNone(){
+  document.querySelectorAll('#reset-global-checks input[type=checkbox]').forEach(cb=>cb.checked=false);
+}
+
+function ejecutarResetGlobal(){
+  const seleccionados = [...document.querySelectorAll('#reset-global-checks input[type=checkbox]')]
+    .filter(cb=>cb.checked).map(cb=>cb.dataset.eq);
+  if(!seleccionados.length){ toast('⚠️ Selecciona al menos un equipo'); return; }
+  cerrarResetGlobal();
+  seleccionados.forEach(eq=>resetearEquipo(eq));
+  toast('↺ '+seleccionados.length+' equipo(s) reseteado(s)');
 }
 
 // ══════════════════════════════════════════════════
