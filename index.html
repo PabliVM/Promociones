@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -2170,6 +2171,15 @@ function capturarCampo(eq, card){
     ctx.textAlign = 'left';
     ctx.fillText(fechaFmt, 16, HEADER_H/2 + 8);
 
+    // Escudo arriba derecha en header
+    const _shieldHdr = cWrap.querySelector('.campo-shield');
+    if(_shieldHdr && _shieldHdr.src){
+      const _sh = HEADER_H - 12;
+      ctx.save();
+      ctx.drawImage(_shieldHdr, W - 16 - _sh, 6, _sh, _sh);
+      ctx.restore();
+    }
+
     // Campo capturado
     ctx.drawImage(fieldCanvas, 0, HEADER_H, W, FIELD_H);
 
@@ -3912,17 +3922,20 @@ function generarFotoLista(eq){
   ctx.fillStyle = '#C8A800';
   ctx.fillRect(0, HEADER_H-2, W, 2);
 
-  // Emoji libreta
-  ctx.font = '28px serif';
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'left';
-  ctx.fillText('📋', PAD, HEADER_H/2 - 6);
+  // Escudo Real Madrid (arriba derecha)
+  const shieldImgEl = document.querySelector('#hdr-escudo img');
+  function dibujarCuerpoLista(){
+    // Emoji libreta
+    ctx.font = '28px serif';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText('📋', PAD, HEADER_H/2 - 6);
 
-  // Equipo + fecha
-  ctx.fillStyle = 'rgba(255,255,255,.55)';
-  ctx.font = `600 12px ${FONT}`;
-  ctx.textBaseline = 'top';
-  ctx.fillText(eq, PAD + 40, 14);
+    // Equipo + fecha
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.font = `600 12px ${FONT}`;
+    ctx.textBaseline = 'top';
+    ctx.fillText(eq, PAD + 40, 14);
 
   const partesFecha = fecha.split('/');
   const aaStr = new Date().getFullYear().toString().slice(2);
@@ -3936,8 +3949,8 @@ function generarFotoLista(eq){
 
   // (contador eliminado — ya aparece en la sección CAMPO abajo)
 
-  // Secciones
-  let y = HEADER_H + PAD;
+    // Secciones
+    let y = HEADER_H + PAD;
 
   secciones.forEach(sec => {
     // Cabecera sección
@@ -3986,8 +3999,8 @@ function generarFotoLista(eq){
     y += 12;
   });
 
-  // Exportar
-  cv.toBlob(blob => {
+    // Exportar
+    cv.toBlob(blob => {
     if(!blob){ toast('❌ Error generando lista'); return; }
     const blobUrl = URL.createObjectURL(blob);
     let ov = document.getElementById('photo-ov');
@@ -4008,7 +4021,24 @@ function generarFotoLista(eq){
     btnC.onclick = () => { ov.remove(); URL.revokeObjectURL(blobUrl); };
     ov.appendChild(p); ov.appendChild(imgEl); ov.appendChild(btnC);
     document.body.appendChild(ov);
-  }, 'image/png');
+    }, 'image/png');
+  } // fin dibujarCuerpoLista
+
+  // Dibujar escudo arriba a la derecha si existe
+  if(shieldImgEl && shieldImgEl.src){
+    const si = new Image();
+    si.onload = () => {
+      const sh = HEADER_H - 12;
+      ctx.save();
+      ctx.drawImage(si, W - PAD - sh, 6, sh, sh);
+      ctx.restore();
+      dibujarCuerpoLista();
+    };
+    si.onerror = () => dibujarCuerpoLista();
+    si.src = shieldImgEl.src;
+  } else {
+    dibujarCuerpoLista();
+  }
 }
 
 function render(){
