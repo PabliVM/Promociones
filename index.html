@@ -4517,10 +4517,12 @@ function buildCard(eq){
     const uylDisp=getPlantillaUYL().filter(n=>!enCancha.has(n));
     uylDisp.forEach(n=>{
       const eqO=origen[n]||eq;
-      // Color según equipo de origen (igual que chips prestados en otros campos)
+      // Color según equipo de origen
       const colorCls = eqO===eq ? 'c-verde' : (EQ_COLORS[eqO]||'c-azul');
-      const ch=chip(n,eqO,'disponibles',colorCls,'cz');
-      ch.dataset.eq=eq; // siempre vuelve a JA al soltar
+      // Crear chip con eq=JA para que el drag lo trate siempre como disponible de JA
+      const ch=chip(n,eq,'disponibles',colorCls,'cz');
+      // Forzar color del equipo origen manualmente (chip() pone color basado en origen[n])
+      ch.className = ch.className.replace(/c-prestado[^ ]*/g, colorCls);
       // Badge equipo si es de otro equipo
       if(eqO && eqO!==eq){
         const eqsShort={'CASTILLA':'CAS','RMC':'RMC','JUVENIL A':'JA','JUVENIL B':'JB','JUVENIL C':'JC','CADETE A':'CA'};
@@ -5746,9 +5748,16 @@ function sugerirRival(eq){
 // ══════════════════════════════════════════════════
 let _regTab = 'jugadores';
 
+// ══════════════════════════════════════════════════
+// STATS — Acumulados históricos
+// ══════════════════════════════════════════════════
+let _regTab = 'jugadores';
+
+const EQ_SHORT = {'CASTILLA':'CAS','RMC':'RMC','JUVENIL A':'JA','JUVENIL B':'JB','JUVENIL C':'JC','CADETE A':'CA'};
+const EQ_COLOR = {'CASTILLA':'#C8A800','RMC':'#3b82f6','JUVENIL A':'#10b981','JUVENIL B':'#f59e0b','JUVENIL C':'#ec4899','CADETE A':'#8b5cf6'};
+
 function openReg(){
   document.getElementById('reg-overlay').classList.add('show');
-  // Poblar filtro equipos
   const sel = document.getElementById('reg-eq-filter');
   sel.innerHTML = '<option value="">Todos los equipos</option>';
   EQUIPOS.forEach(eq=>{ const o=document.createElement('option'); o.value=eq; o.textContent=eq; sel.appendChild(o); });
@@ -5758,109 +5767,147 @@ function closeReg(){
   document.getElementById('reg-overlay').classList.remove('show');
 }
 function switchRegTab(tab){
-  _regTab = tab;
-  document.querySelectorAll('.reg-tab').forEach((b,i)=>b.classList.toggle('active', (i===0&&tab==='jugadores')||(i===1&&tab==='equipos')));
-  const inp = document.getElementById('reg-search');
-  const sel = document.getElementById('reg-eq-filter');
-  inp.style.display = tab==='jugadores' ? '' : 'none';
-  sel.style.display = tab==='jugadores' ? '' : 'none';
+  _regTab=tab;
+  document.querySelectorAll('.reg-tab').forEach((b,i)=>b.classList.toggle('active',(i===0&&tab==='jugadores')||(i===1&&tab==='equipos')));
+  document.getElementById('reg-search').style.display = tab==='jugadores' ? '' : 'none';
+  document.getElementById('reg-eq-filter').style.display = tab==='jugadores' ? '' : 'none';
   renderReg();
 }
 
+// Calcula stats acumulados por jugador: sesiones por equipo, con tipo
 function calcStatsJugador(nombre){
-  let entrenos=0, partidos=0, banco=0, eqsConEntrenamiento={};
+  // porEquipo[eq] = {entrenos, partidos, banco}
+  const porEquipo = {};
+  EQUIPOS.forEach(eq=>{ porEquipo[eq]={entrenos:0,partidos:0,banco:0}; });
+  let totalEntrenos=0, totalPartidos=0, totalBanco=0, totalPromo=0;
+
   DIAS.forEach(d=>{
     EQUIPOS.forEach(eq=>{
       const esP = !!(modoPartido[d]?.[eq]);
-      const enCampo = (data[d][eq].campo||[]).includes(nombre);
-      const enBanco = (data[d][eq].banquillo||[]).includes(nombre);
-      if(enCampo){
-        if(esP){ partidos++; } else { entrenos++; }
-        if(!eqsConEntrenamiento[eq]) eqsConEntrenamiento[eq]=0;
-        eqsConEntrenamiento[eq]++;
+      if((data[d][eq].campo||[]).includes(nombre)){
+        if(esP){ porEquipo[eq].partidos++; totalPartidos++; }
+        else   { porEquipo[eq].entrenos++; totalEntrenos++; }
       }
-      if(enBanco) banco++;
+      if((data[d][eq].banquillo||[]).includes(nombre)){ porEquipo[eq].banco++; totalBanco++; }
+    });
+    // Promovido algún día
+    EQUIPOS.forEach(eq=>{
+      if(promInfo[d]?.[eq]?.[nombre]) totalPromo++;
     });
   });
-  return { entrenos, partidos, banco, eqsConEntrenamiento };
+  return { porEquipo, totalEntrenos, totalPartidos, totalBanco, totalPromo };
 }
 
+// Stats por equipo: acumulados históricos
 function calcStatsEquipo(eq){
-  let totalSesiones=0, totalJugadoresPropios=0, totalJugadoresExteros=0;
-  let sesionesPartido=0, sesionesEntreno=0;
-  let promosSemana=new Set();
-  let jugsDias=[]; // por día: {dia, jugadores, externos, esPartido}
+  let sesionesEntreno=0, sesionesPartido=0;
+  let totalPropiosCampo=0, totalExternosCampo=0;
+  // externos por equipo origen: {eqOrigen: count}
+  const externosPorEq={};
+  // jugadores propios únicos que han entrenado/jugado
+  const propiosActivos=new Set();
+  // jugadores externos únicos
+  const externosUnicos=new Set();
+  // banco: propios que han estado en banco
+  let bancoPropios=0, bancoExternos=0;
+  // promovidos salientes (desde este equipo a otro)
+  const promSalientes=new Set();
+  // promovidos entrantes (llegados de otro equipo a este)
+  const promEntrantes=new Set();
 
   DIAS.forEach(d=>{
-    const campo = data[d][eq].campo||[];
-    if(!campo.length) return;
-    totalSesiones++;
-    const esP = !!(modoPartido[d]?.[eq]);
-    if(esP) sesionesPartido++; else sesionesEntreno++;
-    let propios=0, externos=0;
-    campo.forEach(n=>{
-      if(origen[n]===eq) propios++; else externos++;
-    });
-    totalJugadoresPropios+=propios;
-    totalJugadoresExteros+=externos;
-    jugsDias.push({dia:d, total:campo.length, propios, externos, esPartido:esP});
-    // Promovidos
-    Object.entries(promInfo[d]?.[eq]||{}).forEach(([n,dest])=>{ if(dest) promosSemana.add(n); });
+    const campo=data[d][eq].campo||[];
+    const banco=data[d][eq].banquillo||[];
+    if(campo.length){
+      const esP=!!(modoPartido[d]?.[eq]);
+      if(esP) sesionesPartido++; else sesionesEntreno++;
+      campo.forEach(n=>{
+        if(origen[n]===eq){ totalPropiosCampo++; propiosActivos.add(n); }
+        else { totalExternosCampo++; externosUnicos.add(n); const eo=origen[n]||'?'; externosPorEq[eo]=(externosPorEq[eo]||0)+1; }
+      });
+    }
+    banco.forEach(n=>{ if(origen[n]===eq) bancoPropios++; else bancoExternos++; });
+    // Promovidos salientes: jugadores de este equipo que van a otro
+    Object.entries(promInfo[d]?.[eq]||{}).forEach(([n,dest])=>{ if(dest && dest!=='1ER EQUIPO') promSalientes.add(n); else if(dest==='1ER EQUIPO') promSalientes.add(n); });
+    // Promovidos entrantes: jugadores de otros que aparecen en campo de este equipo
+    campo.forEach(n=>{ if(origen[n] && origen[n]!==eq) promEntrantes.add(n); });
   });
-  const pctExternos = totalSesiones ? Math.round(totalJugadoresExteros/(totalJugadoresPropios+totalJugadoresExteros)*100)||0 : 0;
-  return { totalSesiones, sesionesPartido, sesionesEntreno, pctExternos, promosSemana:[...promosSemana], jugsDias };
+
+  const totalSesiones=sesionesEntreno+sesionesPartido;
+  const totalCampo=totalPropiosCampo+totalExternosCampo;
+  const pctExternos=totalCampo ? Math.round(totalExternosCampo/totalCampo*100) : 0;
+  const plantillaSize=(plantillas[eq]||[]).length;
+  const pctPlantillaActiva=plantillaSize ? Math.round(propiosActivos.size/plantillaSize*100) : 0;
+  // Media jugadores por sesión
+  const mediaCampo=totalSesiones ? Math.round((totalPropiosCampo+totalExternosCampo)/totalSesiones*10)/10 : 0;
+
+  return { sesionesEntreno, sesionesPartido, totalSesiones,
+    totalPropiosCampo, totalExternosCampo, pctExternos,
+    propiosActivos, externosUnicos, externosPorEq,
+    bancoPropios, bancoExternos,
+    promSalientes:[...promSalientes], promEntrantes:[...promEntrantes],
+    plantillaSize, pctPlantillaActiva, mediaCampo };
 }
 
-const EQ_COLOR = {
-  'CASTILLA':'#C8A800','RMC':'#3b82f6','JUVENIL A':'#10b981',
-  'JUVENIL B':'#f59e0b','JUVENIL C':'#ec4899','CADETE A':'#8b5cf6'
-};
-
 function renderReg(){
-  const content = document.getElementById('reg-content');
-  if(_regTab==='jugadores') renderRegJugadores(content);
-  else renderRegEquipos(content);
+  const c=document.getElementById('reg-content');
+  if(_regTab==='jugadores') renderRegJugadores(c);
+  else renderRegEquipos(c);
 }
 
 function renderRegJugadores(container){
   const q=(document.getElementById('reg-search').value||'').toLowerCase().trim();
   const eqF=document.getElementById('reg-eq-filter').value;
 
-  const todos=[...new Set([...Object.keys(origen), ...EQUIPOS.flatMap(eq=>DIAS.flatMap(d=>ZONAS.flatMap(z=>data[d][eq][z]||[])))])].sort();
+  const todos=[...new Set([...Object.keys(origen),...EQUIPOS.flatMap(eq=>DIAS.flatMap(d=>ZONAS.flatMap(z=>data[d][eq][z]||[])))])].sort();
   const filtrados=todos.filter(n=>{
     if(q && !n.toLowerCase().includes(q)) return false;
     if(eqF && origen[n]!==eqF) return false;
     return true;
   });
 
-  // Tabla
-  let html = '<div id="reg-table-wrap"><table id="reg-table"><thead id="reg-thead"><tr>';
-  html += '<th>Jugador</th>';
-  DIAS.forEach(d=>{ html+=`<th title="${d}">${d.slice(0,3)}</th>`; });
-  html += '<th title="Entrenamientos">🏋️</th><th title="Partidos">⚽</th><th title="Banco">🔄</th><th>TOTAL</th></tr></thead><tbody>';
+  if(!filtrados.length){ container.innerHTML='<div style="padding:30px;text-align:center;color:rgba(255,255,255,.25);font-family:Barlow Condensed,sans-serif;font-size:14px;text-transform:uppercase;">Sin jugadores</div>'; return; }
+
+  let html='<div id="reg-table-wrap"><table id="reg-table"><thead><tr>';
+  html+='<th>Jugador</th><th title="Entrenamientos propios">🏋️ Prop</th><th title="Partidos propios">⚽ Prop</th><th title="Entrenamientos con otros equipos">🏋️ Ext</th><th title="Partidos con otros equipos">⚽ Ext</th><th title="Veces en banco">🔄 B</th><th>TOTAL</th></tr></thead><tbody>';
 
   filtrados.forEach(nombre=>{
     const eqOrig=origen[nombre]||'—';
     const col=EQ_COLOR[eqOrig]||'#94a3b8';
-    const {entrenos,partidos,banco}=calcStatsJugador(nombre);
-    const total=entrenos+partidos;
-    html+=`<tr><td><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${col};margin-right:5px;vertical-align:middle;"></span><span style="font-size:9px;opacity:.45">${(eqOrig.slice(0,4))}</span><br><strong>${nombre}</strong></td>`;
-    DIAS.forEach(d=>{
-      let cls='empty', txt='·';
-      EQUIPOS.forEach(eq=>{
-        const esP=!!(modoPartido[d]?.[eq]);
-        if((data[d][eq].campo||[]).includes(nombre)){ cls=esP?'partido':'active'; txt=esP?'⚽':'✓'; }
-        else if((data[d][eq].banquillo||[]).includes(nombre) && cls==='empty'){ cls='banco'; txt='B'; }
-      });
-      html+=`<td><span class="reg-dot ${cls}">${txt}</span></td>`;
-    });
-    html+=`<td><span style="color:#4ade80;font-weight:800;font-family:'Barlow Condensed',sans-serif">${entrenos||''}</span></td>`;
-    html+=`<td><span style="color:#f59e0b;font-weight:800;font-family:'Barlow Condensed',sans-serif">${partidos||''}</span></td>`;
-    html+=`<td><span style="color:#60a5fa;font-weight:800;font-family:'Barlow Condensed',sans-serif">${banco||''}</span></td>`;
-    html+=`<td class="reg-total">${total||'—'}</td></tr>`;
+    const short=EQ_SHORT[eqOrig]||eqOrig.slice(0,3);
+    const {porEquipo,totalEntrenos,totalPartidos,totalBanco}=calcStatsJugador(nombre);
+    const eqPropio=eqOrig;
+    const entrProp=porEquipo[eqPropio]?.entrenos||0;
+    const partProp=porEquipo[eqPropio]?.partidos||0;
+    const entrExt=totalEntrenos-entrProp;
+    const partExt=totalPartidos-partProp;
+    const total=totalEntrenos+totalPartidos;
+
+    // Desglose por equipo externo
+    const extDesc=EQUIPOS.filter(eq=>eq!==eqPropio&&(porEquipo[eq]?.entrenos||porEquipo[eq]?.partidos))
+      .map(eq=>`<span title="${eq}" style="display:inline-block;background:${EQ_COLOR[eq]}22;color:${EQ_COLOR[eq]};border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700;margin:1px;">${EQ_SHORT[eq]} ${(porEquipo[eq].entrenos||0)+(porEquipo[eq].partidos||0)}</span>`)
+      .join('');
+
+    html+=`<tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0;"></span>
+          <div>
+            <div style="font-size:9px;color:${col};font-weight:800;letter-spacing:.5px;">${short}</div>
+            <div style="font-weight:700;font-size:12px;">${nombre}</div>
+            ${extDesc ? `<div style="margin-top:2px;">${extDesc}</div>` : ''}
+          </div>
+        </div>
+      </td>
+      <td><span style="color:#4ade80;font-weight:800;font-family:'Barlow Condensed',sans-serif;font-size:13px">${entrProp||'—'}</span></td>
+      <td><span style="color:#f59e0b;font-weight:800;font-family:'Barlow Condensed',sans-serif;font-size:13px">${partProp||'—'}</span></td>
+      <td><span style="color:#60a5fa;font-weight:800;font-family:'Barlow Condensed',sans-serif;font-size:13px">${entrExt||'—'}</span></td>
+      <td><span style="color:#a78bfa;font-weight:800;font-family:'Barlow Condensed',sans-serif;font-size:13px">${partExt||'—'}</span></td>
+      <td><span style="color:#94a3b8;font-weight:700;font-family:'Barlow Condensed',sans-serif;font-size:13px">${totalBanco||'—'}</span></td>
+      <td class="reg-total">${total||'—'}</td>
+    </tr>`;
   });
   html+='</tbody></table></div>';
-  if(!filtrados.length) html='<div style="padding:30px;text-align:center;color:rgba(255,255,255,.25);font-family:Barlow Condensed,sans-serif;font-size:14px;text-transform:uppercase;">Sin jugadores</div>';
   container.innerHTML=html;
 }
 
@@ -5869,44 +5916,76 @@ function renderRegEquipos(container){
   EQUIPOS.forEach(eq=>{
     const col=EQ_COLOR[eq]||'#94a3b8';
     const s=calcStatsEquipo(eq);
-    if(!s.totalSesiones){ html+=`<div class="reg-eq-card"><div class="reg-eq-card-title" style="color:${col}">${eq}<span class="reg-eq-badge" style="background:rgba(255,255,255,.07);color:rgba(255,255,255,.3)">Sin datos</span></div></div>`; return; }
 
-    const pctPropios=100-s.pctExternos;
+    if(!s.totalSesiones){
+      html+=`<div class="reg-eq-card"><div class="reg-eq-card-title" style="color:${col}">${EQ_SHORT[eq]||eq}<span class="reg-eq-badge" style="background:rgba(255,255,255,.07);color:rgba(255,255,255,.3)">Sin sesiones</span></div></div>`;
+      return;
+    }
+
+    // Barras de equipos externos
+    const maxExt=Math.max(...Object.values(s.externosPorEq),1);
+    const extBarras=Object.entries(s.externosPorEq)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([eqO,cnt])=>{
+        const c2=EQ_COLOR[eqO]||'#94a3b8';
+        const pct=Math.round(cnt/maxExt*100);
+        return `<div class="reg-bar-row">
+          <span class="reg-bar-label" style="color:${c2}">${EQ_SHORT[eqO]||eqO.slice(0,3)}</span>
+          <div class="reg-bar-track"><div class="reg-bar-fill" style="width:${pct}%;background:${c2}"></div></div>
+          <span class="reg-bar-val" style="color:${c2}">${cnt}</span>
+        </div>`;
+      }).join('');
+
     html+=`<div class="reg-eq-card">
-      <div class="reg-eq-card-title" style="color:${col}">${eq}
-        <span class="reg-eq-badge" style="background:${col}22;color:${col}">${s.totalSesiones} sesiones</span>
+      <div class="reg-eq-card-title" style="color:${col}">${EQ_SHORT[eq]||eq}
+        <span class="reg-eq-badge" style="background:${col}22;color:${col}">${s.totalSesiones} ses.</span>
       </div>
       <div class="reg-stat-row">
         <div class="reg-stat-box"><div class="reg-stat-num" style="color:#4ade80">${s.sesionesEntreno}</div><div class="reg-stat-lbl">Entrenos</div></div>
         <div class="reg-stat-box"><div class="reg-stat-num" style="color:#f59e0b">${s.sesionesPartido}</div><div class="reg-stat-lbl">Partidos</div></div>
-        <div class="reg-stat-box"><div class="reg-stat-num" style="color:${s.pctExternos>30?'#f87171':'#4ade80'}">${s.pctExternos}%</div><div class="reg-stat-lbl">Externos</div></div>
+        <div class="reg-stat-box"><div class="reg-stat-num" style="color:#60a5fa">${s.mediaCampo}</div><div class="reg-stat-lbl">Media/ses.</div></div>
+        <div class="reg-stat-box"><div class="reg-stat-num" style="color:${s.pctExternos>30?'#f87171':'#a3e635'}">${s.pctExternos}%</div><div class="reg-stat-lbl">% externos</div></div>
       </div>
       <div class="reg-bar-row">
-        <span class="reg-bar-label">Propios</span>
-        <div class="reg-bar-track"><div class="reg-bar-fill" style="width:${pctPropios}%;background:#4ade80"></div></div>
-        <span class="reg-bar-val" style="color:#4ade80">${pctPropios}%</span>
+        <span class="reg-bar-label" style="color:#4ade80">Propios</span>
+        <div class="reg-bar-track"><div class="reg-bar-fill" style="width:${100-s.pctExternos}%;background:#4ade80"></div></div>
+        <span class="reg-bar-val" style="color:#4ade80">${100-s.pctExternos}%</span>
       </div>
       <div class="reg-bar-row">
-        <span class="reg-bar-label">Externos</span>
+        <span class="reg-bar-label" style="color:#60a5fa">Externos</span>
         <div class="reg-bar-track"><div class="reg-bar-fill" style="width:${s.pctExternos}%;background:${s.pctExternos>30?'#f87171':'#60a5fa'}"></div></div>
         <span class="reg-bar-val" style="color:${s.pctExternos>30?'#f87171':'#60a5fa'}">${s.pctExternos}%</span>
-      </div>`;
-
-    // Días con sesión
-    html+=`<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">`;
-    s.jugsDias.forEach(({dia,total,propios,externos,esPartido})=>{
-      const diaCort=dia.slice(0,3);
-      const c=esPartido?'#f59e0b':'#4ade80';
-      html+=`<div title="${dia}: ${total} jugadores (${propios} propios, ${externos} externos)" style="background:${c}18;border:1px solid ${c}44;border-radius:6px;padding:3px 7px;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:${c}">${diaCort} ${total}${esPartido?'⚽':''}</div>`;
-    });
-    html+=`</div>`;
-
-    if(s.promosSemana.length){
-      html+=`<div style="margin-top:8px"><div style="font-family:'Barlow Condensed',sans-serif;font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Promovidos</div><div class="reg-prom-list">`;
-      s.promosSemana.forEach(n=>{ html+=`<span class="reg-prom-chip">${n}</span>`; });
-      html+=`</div></div>`;
-    }
-    html+=`</div>`;
+      </div>
+      ${s.externosUnicos.size ? `
+      <div style="margin-top:8px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">Apariciones por equipo externo</div>
+        ${extBarras}
+      </div>` : ''}
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+        <div class="reg-stat-box" style="flex:none;padding:5px 10px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Plantilla activa</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;color:#fff">${s.propiosActivos.size}<span style="font-size:10px;opacity:.5"> / ${s.plantillaSize}</span></div>
+        </div>
+        <div class="reg-stat-box" style="flex:none;padding:5px 10px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">Externos únicos</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;color:#60a5fa">${s.externosUnicos.size}</div>
+        </div>
+        <div class="reg-stat-box" style="flex:none;padding:5px 10px;">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px">% plantilla usada</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;color:${s.pctPlantillaActiva<70?'#f87171':'#4ade80'}">${s.pctPlantillaActiva}%</div>
+        </div>
+      </div>
+      ${s.promSalientes.length ? `
+      <div style="margin-top:8px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Promovidos salientes</div>
+        <div class="reg-prom-list">${s.promSalientes.map(n=>`<span class="reg-prom-chip">${n}</span>`).join('')}</div>
+      </div>` : ''}
+      ${s.promEntrantes.length ? `
+      <div style="margin-top:6px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:9px;color:rgba(96,180,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Cedidos entrantes</div>
+        <div class="reg-prom-list">${s.promEntrantes.map(n=>`<span style="background:rgba(96,180,255,.12);color:#60b4ff;border-radius:5px;padding:2px 7px;font-weight:700;font-family:'Barlow Condensed',sans-serif;font-size:11px;">${EQ_SHORT[origen[n]]||''} ${n}</span>`).join('')}</div>
+      </div>` : ''}
+    </div>`;
   });
   html+='</div>';
   container.innerHTML=html;
@@ -6099,3 +6178,4 @@ if('serviceWorker' in navigator){
 </div>
 </body>
 </html>
+
