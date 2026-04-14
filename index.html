@@ -1564,10 +1564,6 @@ td.td-vacio{color:rgba(255,255,255,.12);}
       <span id="season-label">2025-26</span>
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
-    <button id="global-reset-btn" onclick="abrirResetGlobal()" title="Resetear equipos"
-      style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;color:#f87171;font-size:13px;gap:4px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.5px;">
-      ↺ RESET
-    </button>
     <div id="save-area">
       <button id="save-btn" onclick="guardarManual()" title="Guardar">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1736,6 +1732,11 @@ td.td-vacio{color:rgba(255,255,255,.12);}
       <rect x="1" y="10" width="4" height="7" rx="1"/>
       <rect x="7" y="10" width="4" height="7" rx="1"/>
       <rect x="13" y="10" width="4" height="7" rx="1"/>
+    </svg>
+  </button>
+  <button class="view-btn" onclick="abrirResetGlobal()" title="Resetear equipos" style="color:#f87171;border-color:rgba(239,68,68,.3);margin-left:4px;">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
     </svg>
   </button>
 </div>
@@ -3380,8 +3381,9 @@ function autoGuardar(){
     try{
       const payload=buildPayload(false);
       localStorage.setItem(LS_KEY, JSON.stringify(payload));
-      // Sync Firebase si hay sesión activa
-      if(_fbSesionActiva && window._fbReady){
+      // Sync Firebase — siempre en sesión 'principal'
+      if(window._fbReady){
+        if(!_fbSesionActiva) _fbSesionActiva = 'principal';
         window.fbGuardarSesion(_fbSesionActiva, payload).then(res=>{
           if(res && res.ok) console.log('✓ Auto-sync Firebase:', _fbSesionActiva);
           else console.warn('Auto-sync Firebase error:', res && res.message);
@@ -3399,7 +3401,8 @@ function guardarManual(){
     const payload=buildPayload(true);  // true → guarda timestamp ahora
     localStorage.setItem(LS_KEY, JSON.stringify(payload));
     // Si hay sesión Firebase activa, guardar también en la nube
-    if(_fbSesionActiva && window._fbReady){
+    if(window._fbReady){
+      if(!_fbSesionActiva) _fbSesionActiva = 'principal';
       window.fbGuardarSesion(_fbSesionActiva, payload).then(res=>{
         if(res && res.ok) console.log('✓ Guardado en Firebase:', _fbSesionActiva);
         else console.warn('Firebase sync error:', res && res.message);
@@ -5232,10 +5235,14 @@ function endChip(e){
   document.querySelectorAll('.dz').forEach(z=>z.classList.remove('dz-active'));
   const ev=e.changedTouches?e.changedTouches[0]:e;
 
-
-
   // ── Detectar zona destino
+  // En touch, ocultar también el chip arrastrado para que elementFromPoint lo atraviese
+  const _chipWasHidden = drag.c.style.visibility;
+  drag.c.style.visibility='hidden';
+  if(drag.pof) drag.pof.style.visibility='hidden';
   const t=document.elementFromPoint(ev.clientX,ev.clientY);
+  drag.c.style.visibility=_chipWasHidden||'';
+  if(drag.pof) drag.pof.style.visibility='';
   const dz=t&&t.closest('.dz');
 
   if(!dz){
@@ -5671,80 +5678,105 @@ let tT=null;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('show'),2200);}
 
 // Intentar cargar guardado previo
+// ── ARRANQUE: cargar sesión principal desde Firebase ──
+// Firebase es la fuente de verdad. localStorage solo como fallback mientras carga.
 const cargado = cargarGuardado();
-initTiposConfig(); // rellenar equipos sin config guardada
-if(cargado) toast('✅ Datos restaurados desde guardado anterior');
-render();
+initTiposConfig();
+if(cargado) render(); // render provisional con datos locales
 
-// ── Importar plantillas desde campograma/plantillas en Firebase ──
-// Se ejecuta siempre al arrancar: si Firebase tiene datos más recientes, los aplica
-async function importarPlantillasFirebase(){
+async function arrancarDesdeFirebase(){
   try{
-    // Esperar a que Firebase esté listo (máx 5s)
+    // Esperar Firebase listo (máx 6s)
     if(!window._fbReady){
-      await new Promise((res, rej)=>{
-        const t = setTimeout(()=>rej('timeout'), 5000);
-        window.addEventListener('firebase-ready', ()=>{ clearTimeout(t); res(); }, {once:true});
+      await new Promise((res,rej)=>{
+        const t=setTimeout(()=>rej('timeout'),6000);
+        window.addEventListener('firebase-ready',()=>{clearTimeout(t);res();},{once:true});
       });
     }
-    const snap = await db.collection('campograma').doc('plantillas').get();
-    if(!snap.exists){ console.log('[plantillas] No hay datos en campograma/plantillas'); return; }
-    const fbData = snap.data();
-    const origenFb = fbData.origen || {};
-    if(!Object.keys(origenFb).length){ console.log('[plantillas] origen vacío'); return; }
 
-    // Construir plantillas desde origen
-    const nuevasPlantillas = {};
-    EQUIPOS.forEach(eq=>{ nuevasPlantillas[eq]=[]; });
-    Object.entries(origenFb).forEach(([nombre, eq])=>{
-      if(!nuevasPlantillas[eq]) nuevasPlantillas[eq]=[];
-      if(!nuevasPlantillas[eq].includes(nombre)) nuevasPlantillas[eq].push(nombre);
-    });
+    // 1. Cargar sesión principal
+    const res = await window.fbCargarSesion('principal');
+    if(res.ok && res.data && res.data.plantillas){
+      const payload = res.data;
+      // Aplicar payload de Firebase (misma lógica que fbCargar pero silenciosa)
+      if(payload.data        && typeof payload.data==='object')        data        = payload.data;
+      if(payload.pos         && typeof payload.pos==='object')         pos         = payload.pos;
+      if(payload.plantillas  && typeof payload.plantillas==='object')  plantillas  = payload.plantillas;
+      if(payload.origen      && typeof payload.origen==='object')      Object.assign(origen, payload.origen);
+      if(payload.colNames    && typeof payload.colNames==='object')    colNames    = payload.colNames;
+      if(payload.extraZonas  && typeof payload.extraZonas==='object')  extraZonas  = payload.extraZonas;
+      if(payload.promInfo    && typeof payload.promInfo==='object')    promInfo    = payload.promInfo;
+      if(payload.tiposConfig && typeof payload.tiposConfig==='object') tiposConfig = payload.tiposConfig;
+      if(payload.tipoPartido && typeof payload.tipoPartido==='object') tipoPartido = payload.tipoPartido;
+      if(payload.modoPartido && typeof payload.modoPartido==='object') modoPartido = payload.modoPartido;
+      if(payload.modoDescanso&& typeof payload.modoDescanso==='object')modoDescanso= payload.modoDescanso;
+      if(payload.multiEq     && typeof payload.multiEq==='object')     multiEq     = payload.multiEq;
+      if(payload.fechas      && typeof payload.fechas==='object')      Object.assign(FECHAS, payload.fechas);
+      if(Array.isArray(payload.primerEquipoJugadores)) primerEquipoJugadores = payload.primerEquipoJugadores;
+      if(payload.rivales     && typeof payload.rivales==='object')     window.rivales = payload.rivales;
 
-    // Comprobar si ya tenemos estos jugadores (evitar sobreescribir trabajo hecho)
-    const totalLocalActual = EQUIPOS.reduce((s,eq)=>(plantillas[eq]||[]).length+s, 0);
-    const totalFb = EQUIPOS.reduce((s,eq)=>(nuevasPlantillas[eq]||[]).length+s, 0);
-
-    if(totalFb === 0){ console.log('[plantillas] Firebase tiene 0 jugadores, ignorando'); return; }
-
-    // Mergear: añadir jugadores que no estén ya en plantillas locales
-    let añadidos = 0;
-    EQUIPOS.forEach(eq=>{
-      (nuevasPlantillas[eq]||[]).forEach(nombre=>{
-        // Actualizar origen
-        if(!origen[nombre]) origen[nombre] = eq;
-        // Añadir a plantilla si no está
-        if(!plantillas[eq]) plantillas[eq]=[];
-        if(!plantillas[eq].includes(nombre)){
-          plantillas[eq].push(nombre);
-          añadidos++;
-        }
-        // Añadir a disponibles en todos los días si no está en ninguna zona
-        DIAS.forEach(d=>{
-          if(!data[d]) data[d]={};
-          if(!data[d][eq]) data[d][eq]={};
-          for(const z of ZONAS) if(!data[d][eq][z]) data[d][eq][z]=[];
-          const enAlgunaZona = ZONAS.some(z=>(data[d][eq][z]||[]).includes(nombre));
-          if(!enAlgunaZona && !data[d][eq].disponibles.includes(nombre)){
-            data[d][eq].disponibles.push(nombre);
-          }
+      // Normalizar colNames
+      EQUIPOS.forEach(eq=>{
+        if(!colNames[eq]) colNames[eq]=['PROMOCIÓN','LESIÓN','OTROS'];
+        if(colNames[eq][0]==='1ER EQUIPO') colNames[eq][0]='PROMOCIÓN';
+      });
+      // Asegurar estructura completa
+      for(const d of DIAS) for(const e of EQUIPOS){
+        if(!data[d])    data[d]={};
+        if(!data[d][e]) data[d][e]={};
+        for(const z of ZONAS) if(!data[d][e][z]) data[d][e][z]=[];
+      }
+      DIAS.forEach(d=>{if(!promInfo[d])promInfo[d]={};EQUIPOS.forEach(eq=>{if(!promInfo[d][eq])promInfo[d][eq]={};});});
+      // Sincronizar plantillas → disponibles
+      EQUIPOS.forEach(eq=>{
+        (plantillas[eq]||[]).forEach(nombre=>{
+          DIAS.forEach(d=>{
+            const enAlgunaZona=ZONAS.some(z=>(data[d][eq][z]||[]).includes(nombre));
+            if(!enAlgunaZona && !data[d][eq].disponibles.includes(nombre))
+              data[d][eq].disponibles.push(nombre);
+          });
         });
       });
-    });
 
-    if(añadidos > 0){
-      console.log('[plantillas] Importados '+añadidos+' jugadores desde Firebase');
-      toast('☁️ '+añadidos+' jugadores importados desde Firebase');
-      autoGuardar();
-      render();
+      initTiposConfig();
+      _fbSesionActiva = 'principal';
+      // Guardar en local como caché
+      try{ localStorage.setItem(LS_KEY, JSON.stringify(payload)); }catch(e){}
+      render(); renderDias(); renderEqs(); renderCards(); renderMultiEqBar();
+      console.log('✅ Sesión principal cargada desde Firebase');
     } else {
-      console.log('[plantillas] Plantillas ya actualizadas, '+totalFb+' jugadores en Firebase');
+      // No existe sesión principal todavía — crearla con los datos actuales
+      _fbSesionActiva = 'principal';
+      // Importar plantillas desde campograma/plantillas si existen
+      try{
+        const snap = await db.collection('campograma').doc('plantillas').get();
+        if(snap.exists){
+          const origenFb = snap.data().origen || {};
+          EQUIPOS.forEach(eq=>{ if(!plantillas[eq]) plantillas[eq]=[]; });
+          Object.entries(origenFb).forEach(([nombre,eq])=>{
+            if(!plantillas[eq]) plantillas[eq]=[];
+            if(!plantillas[eq].includes(nombre)) plantillas[eq].push(nombre);
+            if(!origen[nombre]) origen[nombre]=eq;
+            DIAS.forEach(d=>{
+              if(!data[d]||!data[d][eq]) return;
+              const enAlgunaZona=ZONAS.some(z=>(data[d][eq][z]||[]).includes(nombre));
+              if(!enAlgunaZona && !data[d][eq].disponibles.includes(nombre))
+                data[d][eq].disponibles.push(nombre);
+            });
+          });
+          render();
+          toast('☁️ Plantillas importadas desde Firebase');
+        }
+      }catch(e){ console.warn('Sin plantillas Firebase:', e); }
+      autoGuardar();
+      console.log('ℹ️ Sesión principal creada en Firebase');
     }
   }catch(e){
-    console.warn('[plantillas] No se pudo importar desde Firebase:', e);
+    console.warn('[arranque] Firebase no disponible, usando datos locales:', e);
+    if(!cargado){ initTiposConfig(); render(); }
   }
 }
-importarPlantillasFirebase();
+arrancarDesdeFirebase();
 </script>
 
 <script>
