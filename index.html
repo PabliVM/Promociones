@@ -1677,7 +1677,7 @@ td.td-vacio{color:rgba(255,255,255,.12);}
     </div>
     <div id="cal-grid"></div>
     <div id="cal-footer">
-      <button id="cal-cancel" onclick="resetCal()">Reset</button>
+      <button id="cal-cancel" onclick="cerrarCal()" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;line-height:1;cursor:pointer;padding:4px 10px;">✕</button>
       <span id="cal-sel-txt"></span>
       <button id="cal-ok" onclick="aplicarSemana()">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1873,27 +1873,31 @@ function distMinOcupadas(t, l, ocupadas){
 }
 
 // Radio de exclusión — los chips no se solapan si están al menos RADIO_MIN % separados
-const RADIO_MIN = 10; // % del campo
+const RADIO_MIN = 6; // % del campo
 
 function snapToGrid(eq, nombre, rawTop, rawLeft){
   const ocupadas = posOcupadas(eq, nombre);
 
-  // 1. Si el punto exacto de drop está libre (sin vecino a < RADIO_MIN), usarlo
+  // 1. Si el punto exacto de drop está libre, usarlo tal cual
   if(distMinOcupadas(rawTop, rawLeft, ocupadas) >= RADIO_MIN){
     return [rawTop, rawLeft];
   }
 
-  // 2. Si hay solapamiento, buscar el slot de la rejilla libre más cercano al drop
-  let bestIdx = -1, bestDist = 9999;
-  SNAP_SLOTS.forEach(([t,l], idx) => {
-    if(distMinOcupadas(t, l, ocupadas) < RADIO_MIN) return; // slot ocupado
-    const d = Math.hypot(rawTop - t, rawLeft - l);
-    if(d < bestDist){ bestDist = d; bestIdx = idx; }
-  });
+  // 2. Si hay solapamiento, desplazar en pequeños incrementos en 8 direcciones
+  //    buscando el punto libre más cercano al drop original
+  const step = 1.5; // % del campo por paso
+  for(let radio = step; radio <= RADIO_MIN * 2; radio += step){
+    for(let ang = 0; ang < 360; ang += 30){
+      const rad = ang * Math.PI / 180;
+      const t = clamp(rawTop  + radio * Math.sin(rad), 0, 100);
+      const l = clamp(rawLeft + radio * Math.cos(rad), 0, 100);
+      if(distMinOcupadas(t, l, ocupadas) >= RADIO_MIN){
+        return [t, l];
+      }
+    }
+  }
 
-  if(bestIdx >= 0) return SNAP_SLOTS[bestIdx];
-
-  // 3. Fallback: posición exacta aunque haya solapamiento (campo lleno)
+  // 3. Fallback: posición exacta aunque haya solapamiento (campo muy lleno)
   return [rawTop, rawLeft];
 }
 
@@ -4222,7 +4226,7 @@ function buildCard(eq){
         if(destLbl){
           const s=document.createElement('span');
           s.className='chip-dest';
-          s.textContent=' '+origLbl+'→'+destLbl;
+          s.textContent=' →'+destLbl;
           s.title = n + ' — de ' + eq + ' al ' + (dest==='1ER EQUIPO'?'Primer Equipo':dest);
           c.appendChild(s);
         }
@@ -5321,7 +5325,7 @@ function showAlert(msg,onConfirm,okLabel='Añadir'){
   else { okBtn.style.background=''; okBtn.style.borderColor=''; }
   document.getElementById('alert-overlay').classList.add('show');
   alertCb=onConfirm;
-  okBtn.onclick=()=>{closeAlert();if(alertCb)alertCb();};
+  okBtn.onclick=()=>{const cb=alertCb;closeAlert();if(cb)cb();};
 }
 function closeAlert(){
   document.getElementById('alert-overlay').classList.remove('show');
