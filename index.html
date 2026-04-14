@@ -3100,8 +3100,6 @@ function cargarFicheroImport(ev){
     if(payload.rivales)          rivales              = payload.rivales;
     if(payload.primerEquipoJugadores) primerEquipoJugadores = payload.primerEquipoJugadores;
       if(payload.fechas)     Object.assign(FECHAS, payload.fechas);
-      // Migración Castilla
-      if(colNames['CASTILLA'] && colNames['CASTILLA'][0]==='PROMOCIÓN') colNames['CASTILLA'][0]='1ER EQUIPO';
       autoGuardar();
       render();
       renderDias();
@@ -3640,23 +3638,34 @@ function cargarGuardado(){
   try{
     const raw = localStorage.getItem(LS_KEY);
     if(!raw) return false;
-    const payload = JSON.parse(raw);
-    if(payload.data) data = payload.data;
-    if(payload.pos)  pos  = payload.pos;
-    if(payload.plantillas) plantillas = payload.plantillas;
-    if(payload.origen) Object.assign(origen, payload.origen);
-    if(payload.colNames) colNames = payload.colNames;
-    if(payload.extraZonas) extraZonas = payload.extraZonas;
-    if(payload.fechas) FECHAS=payload.fechas;
-    if(payload.promInfo){ promInfo = payload.promInfo; }
-    if(payload.tiposConfig)  tiposConfig  = payload.tiposConfig;
-    if(payload.tipoPartido)  tipoPartido  = payload.tipoPartido;
-    if(payload.modoPartido)  modoPartido  = payload.modoPartido;
-    if(payload.modoDescanso) modoDescanso = payload.modoDescanso;
+    let payload;
+    try{ payload = JSON.parse(raw); } catch(pe){ console.error('[cargarGuardado] JSON parse error:', pe); return false; }
+    if(!payload || typeof payload !== 'object') return false;
+    if(payload.data       && typeof payload.data === 'object')       data        = payload.data;
+    if(payload.pos        && typeof payload.pos  === 'object')       pos         = payload.pos;
+    if(payload.plantillas && typeof payload.plantillas === 'object') plantillas  = payload.plantillas;
+    if(payload.origen     && typeof payload.origen === 'object')     Object.assign(origen, payload.origen);
+    if(payload.colNames   && typeof payload.colNames === 'object')   colNames    = payload.colNames;
+    if(payload.extraZonas && typeof payload.extraZonas === 'object') extraZonas  = payload.extraZonas;
+    if(payload.fechas     && typeof payload.fechas === 'object')     FECHAS      = payload.fechas;
+    if(payload.promInfo   && typeof payload.promInfo === 'object')   promInfo    = payload.promInfo;
+    if(payload.tiposConfig  && typeof payload.tiposConfig === 'object')  tiposConfig  = payload.tiposConfig;
+    if(payload.tipoPartido  && typeof payload.tipoPartido === 'object')  tipoPartido  = payload.tipoPartido;
+    if(payload.modoPartido  && typeof payload.modoPartido === 'object')  modoPartido  = payload.modoPartido;
+    if(payload.modoDescanso && typeof payload.modoDescanso === 'object') modoDescanso = payload.modoDescanso;
+    if(payload.multiEq      && typeof payload.multiEq === 'object')      multiEq      = payload.multiEq;
+    if(payload.modoUYL      && typeof payload.modoUYL === 'object')      modoUYL      = payload.modoUYL;
+    if(payload.listaUYL     && Array.isArray(payload.listaUYL))          listaUYL     = payload.listaUYL;
+    if(Array.isArray(payload.listaUYLExcl)) window.listaUYLExcl = payload.listaUYLExcl;
+    if(payload.rivales      && typeof payload.rivales === 'object')      window.rivales = payload.rivales;
+    if(Array.isArray(payload.primerEquipoJugadores)) primerEquipoJugadores = payload.primerEquipoJugadores;
     // Asegurar estructura promInfo para todos los días/equipos
     DIAS.forEach(d=>{ if(!promInfo[d]) promInfo[d]={}; EQUIPOS.forEach(eq=>{ if(!promInfo[d][eq]) promInfo[d][eq]={}; }); });
     // Asegurar que todos los equipos tienen sus colNames
-    EQUIPOS.forEach(eq=>{ if(!colNames[eq]) colNames[eq]=['PROMOCIÓN','LESIÓN','OTROS'];  });
+    EQUIPOS.forEach(eq=>{
+      if(!colNames[eq]) colNames[eq]=['PROMOCIÓN','LESIÓN','OTROS'];
+      if(colNames[eq][0]==='1ER EQUIPO') colNames[eq][0]='PROMOCIÓN'; // normalizar datos viejos
+    });
     // Asegurar zonas banquillo
     for(const d of DIAS) for(const e of EQUIPOS){
       if(!data[d])    data[d]={};
@@ -3669,7 +3678,7 @@ function cargarGuardado(){
       (plantillas[eq]||[]).forEach(nombre=>{
         DIAS.forEach(d=>{
           const enAlgunaZona = ZONAS.some(z=>(data[d][eq][z]||[]).includes(nombre));
-          if(!enAlgunaZona){
+          if(!enAlgunaZona && !data[d][eq].disponibles.includes(nombre)){
             data[d][eq].disponibles.push(nombre);
           }
         });
@@ -3682,6 +3691,8 @@ function cargarGuardado(){
     }
     return true;
   }catch(e){
+    console.error('[cargarGuardado] ERROR:', e);
+    toast('⚠️ Error al cargar datos: ' + (e.message || e));
     return false;
   }
 }
@@ -4439,7 +4450,21 @@ function buildCard(eq){
     if(zona==='extra'){
       const delBtn=mk('button','col-del-btn');
       delBtn.textContent='×'; delBtn.title='Eliminar columna extra';
-      delBtn.onclick=(e)=>{ e.stopPropagation(); extraZonas[eq]=false; render(); };
+      delBtn.onclick=(e)=>{
+        e.stopPropagation();
+        if(!confirm('¿Eliminar esta columna? Los jugadores volverán a disponibles.')) return;
+        // Devolver jugadores de la zona extra a disponibles
+        DIAS.forEach(d=>{
+          const extras = [...(data[d][eq].extra||[])];
+          extras.forEach(n=>{
+            if(!data[d][eq].disponibles.includes(n)) data[d][eq].disponibles.push(n);
+          });
+          data[d][eq].extra=[];
+        });
+        extraZonas[eq]=false;
+        autoGuardar();
+        render();
+      };
       lblWrap.appendChild(delBtn);
     }
     if(idx===2 && !extraZonas[eq]){
@@ -5576,6 +5601,76 @@ const cargado = cargarGuardado();
 initTiposConfig(); // rellenar equipos sin config guardada
 if(cargado) toast('✅ Datos restaurados desde guardado anterior');
 render();
+
+// ── Importar plantillas desde campograma/plantillas en Firebase ──
+// Se ejecuta siempre al arrancar: si Firebase tiene datos más recientes, los aplica
+async function importarPlantillasFirebase(){
+  try{
+    // Esperar a que Firebase esté listo (máx 5s)
+    if(!window._fbReady){
+      await new Promise((res, rej)=>{
+        const t = setTimeout(()=>rej('timeout'), 5000);
+        window.addEventListener('firebase-ready', ()=>{ clearTimeout(t); res(); }, {once:true});
+      });
+    }
+    const snap = await db.collection('campograma').doc('plantillas').get();
+    if(!snap.exists){ console.log('[plantillas] No hay datos en campograma/plantillas'); return; }
+    const fbData = snap.data();
+    const origenFb = fbData.origen || {};
+    if(!Object.keys(origenFb).length){ console.log('[plantillas] origen vacío'); return; }
+
+    // Construir plantillas desde origen
+    const nuevasPlantillas = {};
+    EQUIPOS.forEach(eq=>{ nuevasPlantillas[eq]=[]; });
+    Object.entries(origenFb).forEach(([nombre, eq])=>{
+      if(!nuevasPlantillas[eq]) nuevasPlantillas[eq]=[];
+      if(!nuevasPlantillas[eq].includes(nombre)) nuevasPlantillas[eq].push(nombre);
+    });
+
+    // Comprobar si ya tenemos estos jugadores (evitar sobreescribir trabajo hecho)
+    const totalLocalActual = EQUIPOS.reduce((s,eq)=>(plantillas[eq]||[]).length+s, 0);
+    const totalFb = EQUIPOS.reduce((s,eq)=>(nuevasPlantillas[eq]||[]).length+s, 0);
+
+    if(totalFb === 0){ console.log('[plantillas] Firebase tiene 0 jugadores, ignorando'); return; }
+
+    // Mergear: añadir jugadores que no estén ya en plantillas locales
+    let añadidos = 0;
+    EQUIPOS.forEach(eq=>{
+      (nuevasPlantillas[eq]||[]).forEach(nombre=>{
+        // Actualizar origen
+        if(!origen[nombre]) origen[nombre] = eq;
+        // Añadir a plantilla si no está
+        if(!plantillas[eq]) plantillas[eq]=[];
+        if(!plantillas[eq].includes(nombre)){
+          plantillas[eq].push(nombre);
+          añadidos++;
+        }
+        // Añadir a disponibles en todos los días si no está en ninguna zona
+        DIAS.forEach(d=>{
+          if(!data[d]) data[d]={};
+          if(!data[d][eq]) data[d][eq]={};
+          for(const z of ZONAS) if(!data[d][eq][z]) data[d][eq][z]=[];
+          const enAlgunaZona = ZONAS.some(z=>(data[d][eq][z]||[]).includes(nombre));
+          if(!enAlgunaZona && !data[d][eq].disponibles.includes(nombre)){
+            data[d][eq].disponibles.push(nombre);
+          }
+        });
+      });
+    });
+
+    if(añadidos > 0){
+      console.log('[plantillas] Importados '+añadidos+' jugadores desde Firebase');
+      toast('☁️ '+añadidos+' jugadores importados desde Firebase');
+      autoGuardar();
+      render();
+    } else {
+      console.log('[plantillas] Plantillas ya actualizadas, '+totalFb+' jugadores en Firebase');
+    }
+  }catch(e){
+    console.warn('[plantillas] No se pudo importar desde Firebase:', e);
+  }
+}
+importarPlantillasFirebase();
 </script>
 
 <script>
@@ -5637,3 +5732,4 @@ if('serviceWorker' in navigator){
 </div>
 </body>
 </html>
+
