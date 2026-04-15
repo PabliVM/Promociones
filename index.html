@@ -4254,11 +4254,6 @@ function buildCard(eq){
   zDisp.appendChild(cwD);
   zDisp.appendChild(buildAddInput(eq,'disponibles'));
   card.appendChild(zDisp);
-  // Añadir al campo — input debajo del campo
-  const addCampoWrap = mk('div','');
-  addCampoWrap.style.cssText='padding:3px 10px 4px;background:rgba(0,0,0,.06);border-top:1px solid rgba(0,0,0,.07);';
-  addCampoWrap.appendChild(buildAddInput(eq,'campo'));
-  card.appendChild(addCampoWrap);
   // Columnas estado
   if(!colNames[eq]) colNames[eq]=['PROMOCIÓN','LESIÓN','OTROS'];
   // Columnas estado
