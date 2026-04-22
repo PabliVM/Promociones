@@ -1115,6 +1115,23 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:
 .chip.chip-2l{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;line-height:1.2;white-space:normal;padding:2px 3px;height:2.6em;}
 .chip-n1{font-size:.8em;font-weight:500;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center;}
 .chip-n2{font-size:1em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center;}
+/* BUG 5: badge de jugador prestado (viene de otro equipo) */
+.chip-prestado-badge{
+  display:inline-block;
+  font-size:.65em;
+  font-weight:700;
+  background:rgba(0,0,0,.35);
+  color:#fff;
+  padding:1px 4px;
+  border-radius:3px;
+  margin-right:3px;
+  letter-spacing:.2px;
+  white-space:nowrap;
+  vertical-align:middle;
+}
+.chip.cz .chip-prestado-badge{font-size:9px;padding:1px 5px;margin-right:4px;}
+.pof .chip .chip-prestado-badge{font-size:.55em;padding:0 2px;margin-right:1px;}
+.chip.chip-prestado{position:relative;}
 /* CHIP */
 .chip{display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-family:var(--font);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:3px 7px;cursor:grab;user-select:none;touch-action:none;white-space:nowrap;-webkit-user-select:none;transition:box-shadow .1s,opacity .1s,transform .1s;}
 .chip:active{transform:scale(.95);}
@@ -2210,6 +2227,17 @@ function capturarCampo(eq, card){
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
     ctx.fillText(eq, 16, 10);
+    // BUG 4: Contador 5+2P al lado del nombre del equipo
+    if(eq !== '1ER EQUIPO'){
+      const campoEq = data[dia]?.[eq]?.campo || [];
+      if(campoEq.length){
+        const countTxtFoto = countLabel(eq, campoEq);
+        const eqWidth = ctx.measureText(eq).width;
+        ctx.fillStyle = '#C8A800';
+        ctx.font = '700 13px -apple-system, Helvetica Neue, sans-serif';
+        ctx.fillText(countTxtFoto, 16 + eqWidth + 10, 10);
+      }
+    }
     // Fecha grande izquierda — LUNES DD/MM/AA
     const partesFecha = fecha.split('/');
     const aaStr = new Date().getFullYear().toString().slice(2);
@@ -4435,15 +4463,21 @@ function chip(nombre,eq,zona,color,type){
   let cf = prueba ? 'c-prueba' : (prestado ? (EQ_COLORS[eqO]||'c-prestado') : color);
   const multi = esMulti(nombre);
   const isCampo = type === 'cf';
-  const c=mk('div',`chip ${cf} ${multi?'c-multi':''} ${type}${isCampo?' chip-2l':''}`);
-  c.innerHTML=chipHTML(nombre, isCampo);
+  const c=mk('div',`chip ${cf} ${multi?'c-multi':''} ${type}${isCampo?' chip-2l':''}${prestado?' chip-prestado':''}`);
+  // BUG 5: badge "JA/JB/CAS" + flecha ← para jugadores de otro equipo
+  let prestadoBadge = '';
+  if(prestado && !prueba){
+    const eqShort = (EQ_LABEL && EQ_LABEL[eqO]) || eqO;
+    prestadoBadge = `<span class="chip-prestado-badge">← ${eqShort}</span>`;
+  }
+  c.innerHTML = prestadoBadge + chipHTML(nombre, isCampo);
   c.dataset.eq=eq; c.dataset.zona=zona; c.dataset.nombre=nombre;
   if(prueba) c.title='Jugador a prueba';
   else if(multi){
     const eqs = eqsDeNombre(dia,nombre).join(', ');
     c.title='En varios equipos hoy: '+eqs;
   }
-  else if(prestado) c.title='De '+eqO;
+  else if(prestado) c.title='Viene de '+eqO;
   return c;
 }
 const EQ_COLORS={
@@ -4713,10 +4747,25 @@ function esDescanso(eq){
 }
 function toggleDescanso(eq){
   if(!modoDescanso[dia]) modoDescanso[dia]={};
-  modoDescanso[dia][eq] = !modoDescanso[dia][eq];
-  // Si activa descanso, desactivar partido
-  if(modoDescanso[dia][eq] && modoPartido[dia]?.[eq]){
-    modoPartido[dia][eq]=false;
+  const estabaEnDescanso = !!modoDescanso[dia][eq];
+  modoDescanso[dia][eq] = !estabaEnDescanso;
+  // Si activa descanso, desactivar partido y VACIAR el campo
+  if(modoDescanso[dia][eq]){
+    if(modoPartido[dia]?.[eq]) modoPartido[dia][eq]=false;
+    // BUG 3: mover jugadores del campo y banquillo → disponibles
+    const d = data[dia]?.[eq];
+    if(d){
+      if(!Array.isArray(d.disponibles)) d.disponibles = [];
+      const mover = (arr)=>{
+        if(!Array.isArray(arr)) return;
+        arr.forEach(n=>{
+          if(!d.disponibles.includes(n)) d.disponibles.push(n);
+        });
+        arr.length = 0;
+      };
+      mover(d.campo);
+      mover(d.banquillo);
+    }
   }
   autoGuardar(); renderCards();
 }
