@@ -2227,17 +2227,6 @@ function capturarCampo(eq, card){
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
     ctx.fillText(eq, 16, 10);
-    // BUG 4: Contador 5+2P al lado del nombre del equipo
-    if(eq !== '1ER EQUIPO'){
-      const campoEq = data[dia]?.[eq]?.campo || [];
-      if(campoEq.length){
-        const countTxtFoto = countLabel(eq, campoEq);
-        const eqWidth = ctx.measureText(eq).width;
-        ctx.fillStyle = '#C8A800';
-        ctx.font = '700 13px -apple-system, Helvetica Neue, sans-serif';
-        ctx.fillText(countTxtFoto, 16 + eqWidth + 10, 10);
-      }
-    }
     // Fecha grande izquierda — LUNES DD/MM/AA
     const partesFecha = fecha.split('/');
     const aaStr = new Date().getFullYear().toString().slice(2);
@@ -4217,7 +4206,17 @@ function buildCard(eq){
   listaBtn.textContent='📋';
   listaBtn.title='Foto de la lista de jugadores';
   listaBtn.style.cssText='padding:3px 6px;font-size:13px;';
-  listaBtn.onclick=(e)=>{e.stopPropagation();generarFotoLista(eq);};
+  listaBtn.onclick=(e)=>{
+    e.stopPropagation();
+    try{
+      generarFotoLista(eq);
+    }catch(err){
+      const msg = '❌ '+(err&&err.message?err.message:String(err));
+      if(typeof toast==='function') toast(msg);
+      alert('Error al generar foto de lista:\n\n'+msg+'\n\nStack:\n'+(err&&err.stack?err.stack.slice(0,500):''));
+      console.error('generarFotoLista error:', err);
+    }
+  };
   right.appendChild(listaBtn);
   const camBtn=mk('button','snap-btn');
   camBtn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>';
