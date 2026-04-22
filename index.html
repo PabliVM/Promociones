@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Campograma">
-<meta name="theme-color" content="#0f1729">
+<meta name="theme-color" content="#2563eb">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -87,50 +87,68 @@ window.dispatchEvent(new Event('firebase-ready'));
 </script>
 <style>
 :root{
+  /* === Sistema MAESTRO Corporativo RM === */
+  --bg:#f0f2f5;
+  --surface:#ffffff;
+  --surface-alt:#fafbfc;
+  --border:#dfe1e6;
+  --border-light:#eaecf0;
+  --text:#1a1d23;
+  --text-sec:#5a6170;
+  --text-mut:#8b919e;
+  --text-faint:#b4b9c4;
+  --rm-blue:#2563eb;
+  --rm-blue-lt:#3b7cf5;
+  --rm-blue-bg:#edf1fc;
+  --green:#16a34a;
+  --orange:#ea580c;
+  --red:#dc2626;
+  --sh-sm:0 1px 3px rgba(0,0,0,.06);
+  --sh-md:0 2px 8px rgba(0,0,0,.08);
+  --sh-lg:0 4px 16px rgba(0,0,0,.12);
+  --r:8px;--rs:5px;--rl:12px;
+  --font:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;
+  --tr:.2s ease;
+  /* === Variables heredadas del Campograma (conservadas para no romper JS/CSS internos) === */
   --verde:#77ED85;--verde-dk:#003300;--verde-bd:#4ade80;
   --naranja:#FF8C00;--naranja-bd:#e07800;
   --rojo:#e53e3e;--rojo-bd:#c53030;
   --azul:#3b82f6;--azul-bd:#2563eb;
   --gris-bg:#e5e7eb;--gris-color:#374151;
-  --rm-dark:#0a0f1e;--rm-blue:#2563eb;--rm-gold:#c8a800;
-  --border:#e2e8f0;
-  /* === Sistema MAESTRO (paleta y fuentes corporativas) === */
-  --mbg:#f0f2f5;
-  --msurface:#ffffff;
-  --msurface-alt:#fafbfc;
-  --mborder:#dfe1e6;
-  --mborder-light:#eaecf0;
-  --mtext:#1a1d23;
-  --mtext-sec:#5a6170;
-  --mtext-mut:#8b919e;
-  --mtext-faint:#b4b9c4;
-  --rm-blue:#2563eb;
-  --rm-blue-lt:#3b7cf5;
-  --rm-blue-bg:#edf1fc;
-  --mgreen:#16a34a;
-  --morange:#ea580c;
-  --mred:#dc2626;
-  --msh-sm:0 1px 3px rgba(0,0,0,.06);
-  --msh-md:0 2px 8px rgba(0,0,0,.08);
-  --msh-lg:0 4px 16px rgba(0,0,0,.12);
-  --mr:8px;--mrs:5px;--mrl:12px;
-  --mfont:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;
-  --mtr:.2s ease;
+  --rm-dark:#0a0f1e;--rm-gold:#c8a800;
+}
+
+/* === DARK MODE MAESTRO (toggle por body.dark) === */
+body.dark{
+  --bg:#1a1d23;
+  --surface:#23272f;
+  --surface-alt:#2a2e36;
+  --border:#3a3f4a;
+  --border-light:#32363e;
+  --text:#e4e6ea;
+  --text-sec:#a0a5b0;
+  --text-mut:#707580;
+  --text-faint:#505560;
+  --rm-blue-bg:#1e2a4a;
+  --sh-sm:0 1px 3px rgba(0,0,0,.2);
+  --sh-md:0 2px 8px rgba(0,0,0,.3);
+  --sh-lg:0 4px 16px rgba(0,0,0,.4);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100dvh;overflow-x:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.45;font-size:13px;-webkit-font-smoothing:antialiased;min-height:100vh;min-height:100dvh;overflow-x:hidden;transition:background var(--tr),color var(--tr);}
 /* ── Wrapper responsive ── */
 #app-wrap{
-  max-width:520px;   /* móvil */
+  max-width:520px;
   margin:0 auto;
   position:relative;
-  background:#07101e;
+  background:var(--surface);
   min-height:100vh;min-height:100dvh;
-  box-shadow:0 0 60px rgba(0,0,0,.7);
+  box-shadow:var(--sh-lg);
   overflow-x:hidden;
   padding-bottom:calc(60px + env(safe-area-inset-bottom,0px));
   padding-left:env(safe-area-inset-left,0);
   padding-right:env(safe-area-inset-right,0);
+  transition:background var(--tr);
 }
 /* ── Tablet (≥768px): 2 cols fijo, botones vista ocultos ── */
 @media(min-width:768px){
@@ -143,7 +161,7 @@ body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100
 }
 /* ── Desktop (≥1200px): 3 cols fijo, botones vista ocultos ── */
 @media(min-width:1200px){
-  body{ background:#030910; }
+  body{ background:var(--bg); }
   #app-wrap{ max-width:1400px; box-shadow:none; }
   .cards-grid{ grid-template-columns:repeat(3,1fr)!important; gap:14px; padding:14px; }
   #bottom-nav{ max-width:1400px; }
@@ -152,37 +170,39 @@ body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100
 /* HEADER */
 /* ══ ENCABEZADO ══ */
 #app-header{
-  background:#1a3a8c;
+  background:var(--rm-blue);
   padding:14px 16px 12px;
   padding-top:calc(14px + env(safe-area-inset-top,0px));
   display:flex;align-items:center;justify-content:space-between;
   border-bottom:none;
   position:sticky;top:0;z-index:200;isolation:auto;
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
 }
 #hdr-identity{display:flex;align-items:center;gap:12px;}
 #hdr-escudo{
-  width:48px;height:48px;flex-shrink:0;
-  background:transparent;
+  width:42px;height:42px;flex-shrink:0;
+  background:#fff;
+  border-radius:50%;
+  padding:3px;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
 }
 #hdr-escudo img{
   width:100%;height:100%;
   object-fit:contain;
   display:block;
-  mix-blend-mode:lighten;
-  filter:drop-shadow(0 0 6px rgba(200,168,0,.4));
 }
 #hdr-titles{display:flex;flex-direction:column;gap:1px;}
 #hdr-club{
-  font-family:var(--mfont);
-  font-size:19px;font-weight:700;
-  color:#ffffff;letter-spacing:.2px;
-  text-transform:uppercase;line-height:1;
+  font-family:var(--font);
+  font-size:17px;font-weight:700;
+  color:#fff;letter-spacing:-.3px;
+  line-height:1.2;
 }
 #hdr-sub{
-  font-family:'Barlow Condensed',sans-serif;
-  font-size:10px;font-weight:400;
-  color:rgba(255,255,255,.55);letter-spacing:.5px;
-  text-transform:uppercase;
+  font-family:var(--font);
+  font-size:11px;font-weight:500;
+  color:rgba(255,255,255,.72);letter-spacing:0;
 }
 #hdr-right{display:flex;align-items:center;gap:6px;}
 #season-badge{
@@ -190,7 +210,7 @@ body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100
   padding:5px 11px;border-radius:20px;
   border:1px solid rgba(255,255,255,.25);
   background:rgba(255,255,255,.08);
-  font-family:var(--mfont);
+  font-family:var(--font);
   font-size:12px;font-weight:600;
   color:rgba(255,255,255,.9);
   letter-spacing:.1px;cursor:pointer;
@@ -284,7 +304,7 @@ body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100
   color:#fff;margin-bottom:8px;
 }
 #ascenso-body{
-  font-family:var(--mfont);
+  font-family:var(--font);
   font-size:13px;color:rgba(255,255,255,.6);
   line-height:1.5;margin-bottom:16px;
 }
@@ -446,7 +466,7 @@ body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100
 /* TABS */
 .tabs-scroll{overflow-x:auto;padding:7px 12px 4px;display:flex;gap:5px;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;}
 .tabs-scroll::-webkit-scrollbar{display:none;}
-.tab-dia{flex-shrink:0;padding:5px 12px;border-radius:20px;border:none;cursor:pointer;font-family:var(--mfont);font-size:11px;font-weight:600;letter-spacing:.2px;text-transform:uppercase;background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);transition:all .15s;}
+.tab-dia{flex-shrink:0;padding:5px 12px;border-radius:20px;border:none;cursor:pointer;font-family:var(--font);font-size:11px;font-weight:600;letter-spacing:.2px;text-transform:uppercase;background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);transition:all .15s;}
 .tab-dia.active{background:#fff;color:var(--rm-dark);}
 .tab-n{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;font-size:8px;font-weight:700;margin-left:3px;background:var(--verde);color:var(--verde-dk);}
 .tab-dia.active .tab-n{background:var(--rm-blue);color:#fff;}
@@ -914,7 +934,7 @@ body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100
   margin-bottom:18px;
 }
 #cal-mes{
-  font-family:var(--mfont);
+  font-family:var(--font);
   font-size:18px;font-weight:700;
   color:#fff;letter-spacing:0;
   display:flex;align-items:center;gap:4px;
@@ -933,14 +953,14 @@ body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100
   gap:0;margin-bottom:16px;
 }
 .cal-dow{
-  font-family:var(--mfont);
+  font-family:var(--font);
   font-size:10px;font-weight:500;
   color:rgba(255,255,255,.35);
   text-align:center;padding:0 0 10px;
   letter-spacing:.3px;
 }
 .cal-day{
-  font-family:var(--mfont);
+  font-family:var(--font);
   font-size:17px;font-weight:400;
   color:#fff;text-align:center;
   border-radius:50%;
@@ -969,7 +989,7 @@ body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100
 #cal-cancel{
   padding:10px 22px;border-radius:30px;border:none;
   background:#2a2e3a;color:#fff;
-  font-family:var(--mfont);font-size:15px;font-weight:600;
+  font-family:var(--font);font-size:15px;font-weight:600;
   cursor:pointer;
 }
 #cal-cancel:hover{background:#363b4a;}
@@ -1046,7 +1066,7 @@ body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100
 /* CARD */
 .card{background:#111827;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;}
 .card-hdr{background:#0a1220;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06);}
-.card-hdr-name{font-family:var(--mfont);font-size:13px;font-weight:700;color:#fff;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;}
+.card-hdr-name{font-family:var(--font);font-size:13px;font-weight:700;color:#fff;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;}
 .card-hdr-right{display:flex;align-items:center;gap:5px;}
 .card-hdr-count{font-size:11px;color:rgba(255,255,255,.55);background:rgba(255,255,255,.07);padding:3px 10px;border-radius:20px;cursor:pointer;transition:all .15s;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.3px;}
 .card-hdr-count:active{background:var(--rm-gold);color:#000;}
@@ -1096,7 +1116,7 @@ body{background:#050c18;font-family:var(--mfont);min-height:100vh;min-height:100
 .chip-n1{font-size:.8em;font-weight:500;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center;}
 .chip-n2{font-size:1em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center;}
 /* CHIP */
-.chip{display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-family:var(--mfont);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:3px 7px;cursor:grab;user-select:none;touch-action:none;white-space:nowrap;-webkit-user-select:none;transition:box-shadow .1s,opacity .1s,transform .1s;}
+.chip{display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-family:var(--font);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:3px 7px;cursor:grab;user-select:none;touch-action:none;white-space:nowrap;-webkit-user-select:none;transition:box-shadow .1s,opacity .1s,transform .1s;}
 .chip:active{transform:scale(.95);}
 .chip:active{cursor:grabbing;}
 .chip.dragging{opacity:.25;}.pof:has(.chip.dragging){z-index:9990;}
@@ -1404,6 +1424,22 @@ td.td-vacio{color:rgba(255,255,255,.12);}
 #ghost{position:fixed;pointer-events:none;z-index:9999;transform:translate(-50%,-50%) scale(1.08);opacity:.85;display:none;}
 #toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(14px);background:#1e293b;color:#fff;padding:7px 16px;border-radius:20px;font-size:11px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;z-index:9999;white-space:nowrap;border:1px solid rgba(255,255,255,.1);}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* === Botón dark mode MAESTRO === */
+.btn-dark-maestro{
+  width:28px;height:28px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.25);
+  background:rgba(255,255,255,.12);
+  color:#fff;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;flex-shrink:0;
+  transition:all var(--tr);
+  padding:0;
+}
+.btn-dark-maestro:hover{background:rgba(255,255,255,.25);}
+
+/* === Footer MAESTRO (sobre el #bottom-nav, minimalista) === */
+/* No lo añadimos porque #bottom-nav ocupa el bottom fixed. */
 </style>
 </head>
 <body>
@@ -1587,7 +1623,7 @@ td.td-vacio{color:rgba(255,255,255,.12);}
       <span id="hdr-sub">Real Madrid · Cantera</span>
     </div>
   </div>
-  <div id="hdr-right">
+  <div id="hdr-right"><button class="btn-dark-maestro" onclick="toggleDarkMaestro()" id="darkBtnMaestro" title="Modo oscuro">☾</button>
     <button id="season-badge" onclick="abrirSeasonModal()">
       <span id="season-label">2025-26</span>
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
@@ -5690,5 +5726,28 @@ if('serviceWorker' in navigator){
 </nav>
 <input type="file" id="import-file" accept=".json" style="display:none" onchange="cargarFicheroImport(event)">
 </div>
+<script>
+// Toggle dark mode MAESTRO — persiste preferencia en localStorage
+(function(){
+  function applyDark(isDark){
+    document.body.classList.toggle('dark', isDark);
+    var btn = document.getElementById('darkBtnMaestro');
+    if(btn) btn.innerHTML = isDark ? '☀' : '☾';
+    // Actualizar theme-color PWA según modo
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if(meta) meta.setAttribute('content', isDark ? '#1a1d23' : '#2563eb');
+  }
+  window.toggleDarkMaestro = function(){
+    var isDark = !document.body.classList.contains('dark');
+    applyDark(isDark);
+    try{ localStorage.setItem('maestro-dark', isDark ? '1' : '0'); }catch(e){}
+  };
+  // Restaurar preferencia al cargar
+  try{
+    var saved = localStorage.getItem('maestro-dark');
+    if(saved === '1') applyDark(true);
+  }catch(e){}
+})();
+</script>
 </body>
 </html>
